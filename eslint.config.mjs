@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored skill cache — third-party sources, not project code.
+    ".skill-cache/**",
   ]),
 ]);
 

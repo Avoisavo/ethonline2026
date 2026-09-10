@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "harness:run": "hedera-harness run .harness/spec.yaml"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.81.0",

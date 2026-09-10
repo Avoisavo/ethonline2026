@@ -1,0 +1,17 @@
+{
+  "name": "my-feature-static",
+  "description": "Static invariants for this project. Adjust required files and text assertions to match your PRD.",
+  "fileAssertions": {
+    "required": [
+      "README.md",
+      "AGENTS.md",
+      "package.json",
+      ".harness/spec.yaml",
+      ".harness/prd.md"
+    ],
+    "forbidden": [
+      ".env",
+      ".env.local"
+    ]
+  }
+}

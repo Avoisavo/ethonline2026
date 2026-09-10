@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored third-party skill sources — not ours to lint.
+    ".skill-cache/**",
+    ".harness/skills/**",
   ]),
 ]);
 

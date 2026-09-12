@@ -1,14 +1,20 @@
 import "server-only";
 
-import { getConfig } from "./config";
-import { SCENARIOS } from "./mock";
+import { environmentAsymmetry, getConfig, type ConfigProblem } from "./config";
 import {
   ACTIONS,
   credentialExpiresAt,
   evaluate,
   proofAgeSeconds,
 } from "./policy";
-import { getAccount, shortNullifier, toSnapshot } from "./store";
+import { findAgent } from "./agents";
+import {
+  findClaimByNullifier,
+  getAccount,
+  rosterStatus,
+  shortNullifier,
+  toSnapshot,
+} from "./store";
 
 /**
  * Build the full console state for an account.
@@ -19,15 +25,22 @@ import { getAccount, shortNullifier, toSnapshot } from "./store";
  * cookie gets minted by the first mutating request.
  */
 export function buildState(accountId: string | null) {
-  const config = getConfig();
+  const result = getConfig();
   const record = getAccount(accountId ?? "acct_pending");
   const snapshot = toSnapshot(record);
   const now = Date.now();
 
+  const configured = result.ok;
+  const problems: ConfigProblem[] = result.ok ? [] : result.problems;
+
   return {
-    mode: config.mode,
-    action: config.action,
-    missingEnv: config.mode === "mock" ? config.missing : [],
+    configured,
+    problems,
+    action: result.ok ? result.config.action : null,
+    appId: result.ok ? result.config.appId : null,
+    environment: result.ok ? result.config.environment : null,
+    proofVersion: result.ok ? result.config.proofVersion : null,
+    environmentNote: result.ok ? environmentAsymmetry(result.config) : null,
     account: {
       id: accountId ?? "not yet assigned",
       continuity: snapshot.continuity,
@@ -40,9 +53,33 @@ export function buildState(accountId: string | null) {
       continuityBreaks: record.continuityBreaks,
     },
     decisions: ACTIONS.map((a) => evaluate(a, snapshot, now)),
-    scenarios: SCENARIOS,
+    // Looked up by the account's ANCHOR nullifier, not the account id: the
+    // claim belongs to the human, so it survives clearing the cookie and
+    // follows the same human into a new browser session.
+    agent: buildAgentView(
+      result.ok ? result.config.action : null,
+      snapshot.anchorNullifier,
+    ),
+    roster: rosterStatus(),
     events: record.events,
     now,
+  };
+}
+
+function buildAgentView(action: string | null, anchorNullifier: string | null) {
+  if (!action || !anchorNullifier) return null;
+  const claim = findClaimByNullifier(action, anchorNullifier);
+  if (!claim) return null;
+  const agent = findAgent(claim.agentId);
+  if (!agent) return null;
+  return {
+    id: agent.id,
+    callsign: agent.callsign,
+    role: agent.role,
+    claimedAt: claim.claimedAt,
+    reclaims: claim.reclaims,
+    sessions: claim.accountIds.length,
+    nullifierShort: shortNullifier(claim.nullifier),
   };
 }
 

@@ -1,12 +1,13 @@
 import "server-only";
 
-import { DEVELOPER_PORTAL, type SelfieCheckConfig } from "./config";
+import type { SelfieCheckConfig } from "./config";
 import {
   MAX_AGE_MAX_SECONDS,
   MAX_AGE_MIN_SECONDS,
   SELFIE_VERIFICATION_LEVEL,
   isSelfieIdentifier,
   type ResponseItemV3,
+  type ResponseItemV4,
   type VerifyResponse,
 } from "./types";
 
@@ -98,6 +99,10 @@ const VERIFY_GUIDANCE: Record<string, string> = {
     "RP registration is not active. Finish it in the Developer Portal before signing requests.",
   app_not_migrated:
     "This app has not completed RP registration, so v4 cannot serve it. Use /api/v2/verify/{app_id}.",
+  world_id_4_not_available:
+    "World App on this device predates World ID 4.0. Do NOT silently retry with allow_legacy_proofs: true — accepting both versions gives one human two different nullifiers, which defeats any gate keyed on a single nullifier. Ask the user to update World App.",
+  invalid_schema_id:
+    "`issuer_schema_id` did not match the requested credential (Selfie Check is 11, proof_of_human is 1). Only 4.0 proofs carry this field.",
 };
 
 export function verifyGuidance(code?: string): string | undefined {
@@ -105,8 +110,16 @@ export function verifyGuidance(code?: string): string | undefined {
 }
 
 export type VerifyArgs = {
-  config: Extract<SelfieCheckConfig, { mode: "live" }>;
-  item: ResponseItemV3;
+  config: SelfieCheckConfig;
+  item: ResponseItemV3 | ResponseItemV4;
+  /**
+   * Which protocol version the proof is. This is NOT inferable from the item
+   * alone in a way worth trusting: both shapes carry `identifier`, `nullifier`
+   * and optional `signal_hash`, and the only structural difference is whether
+   * `proof` is a string or an array. Pass it explicitly from the result's
+   * `protocol_version` so a malformed payload cannot route itself.
+   */
+  protocolVersion: "3.0" | "4.0";
   action: string;
   /** rp_context nonce the proof was minted against (required by v4). */
   nonce: string;
@@ -115,30 +128,63 @@ export type VerifyArgs = {
   target?: VerifyTarget;
 };
 
+function isV4Item(
+  item: ResponseItemV3 | ResponseItemV4,
+): item is ResponseItemV4 {
+  return Array.isArray((item as ResponseItemV4).proof);
+}
+
 export async function verifySelfieProof(
   args: VerifyArgs,
 ): Promise<VerifyAttempt> {
   const target = args.target ?? "v4";
+  if (target === "v2" && args.protocolVersion === "4.0") {
+    throw new Error(
+      "The v2 legacy endpoint cannot verify a World ID 4.0 proof — its request " +
+        "shape has a single `proof` string and no `issuer_schema_id`. Use v4.",
+    );
+  }
   return target === "v4" ? verifyV4(args) : verifyV2(args);
 }
 
 async function verifyV4(args: VerifyArgs): Promise<VerifyAttempt> {
-  const { config, item, action, nonce } = args;
-  const url = `${DEVELOPER_PORTAL}/api/v4/verify/${config.rpId}`;
+  const { config, item, action, nonce, protocolVersion } = args;
+  const url = `${config.portal}/api/v4/verify/${config.rpId}`;
 
-  const body: Record<string, unknown> = {
-    protocol_version: "3.0",
-    nonce,
-    action,
-    responses: [
-      {
+  // The v4 endpoint accepts BOTH native 4.0 proofs and legacy 3.0 proofs, but
+  // the per-credential entry is shaped differently and is not interchangeable:
+  // a 4.0 entry carries `proof` as an array and `issuer_schema_id`, and has no
+  // `merkle_root` field (the root is proof[4]). Sending a 3.0-shaped entry with
+  // protocol_version 4.0 — or the reverse — fails as `invalid_proof` with no
+  // indication that the shape, rather than the proof, was wrong.
+  const response: Record<string, unknown> = isV4Item(item)
+    ? {
+        identifier: item.identifier,
+        proof: item.proof,
+        nullifier: item.nullifier,
+        issuer_schema_id: item.issuer_schema_id,
+        ...(item.signal_hash ? { signal_hash: item.signal_hash } : {}),
+        ...(item.expires_at_min != null
+          ? { expires_at_min: item.expires_at_min }
+          : {}),
+      }
+    : {
         identifier: item.identifier,
         proof: item.proof,
         merkle_root: item.merkle_root,
         nullifier: item.nullifier,
         ...(item.signal_hash ? { signal_hash: item.signal_hash } : {}),
-      },
-    ],
+      };
+
+  const body: Record<string, unknown> = {
+    protocol_version: protocolVersion,
+    nonce,
+    action,
+    // The endpoint's enum is production | staging only. Sending it explicitly
+    // rather than relying on the default makes the sandbox asymmetry visible in
+    // the request the inspector shows, instead of hiding it in a default.
+    environment: config.verifiableEnvironment,
+    responses: [response],
   };
 
   const { status, json } = await post(url, body);
@@ -173,8 +219,13 @@ async function verifyV4(args: VerifyArgs): Promise<VerifyAttempt> {
 
 async function verifyV2(args: VerifyArgs): Promise<VerifyAttempt> {
   const { config, item, action } = args;
+  if (isV4Item(item)) {
+    // Unreachable via verifySelfieProof, which rejects this pairing earlier.
+    // Repeated here so verifyV2 is sound if ever called directly.
+    throw new Error("v2 cannot verify a World ID 4.0 proof.");
+  }
   const maxAge = clampMaxAge(args.maxAgeSeconds);
-  const url = `${DEVELOPER_PORTAL}/api/v2/verify/${config.appId}`;
+  const url = `${config.portal}/api/v2/verify/${config.appId}`;
 
   const body: Record<string, unknown> = {
     // v2 renames this field — passing IDKit's `nullifier` through fails with
@@ -219,8 +270,11 @@ async function post(url: string, body: unknown) {
 }
 
 /** Keep the full proof out of logs and out of the client inspector. */
-function redact(body: Record<string, unknown>, proof: string) {
-  const short = `${proof.slice(0, 18)}… (truncated)`;
+function redact(body: Record<string, unknown>, proof: string | string[]) {
+  const first = Array.isArray(proof) ? (proof[0] ?? "") : proof;
+  const short = Array.isArray(proof)
+    ? `${first.slice(0, 18)}… (${proof.length} elements, truncated)`
+    : `${first.slice(0, 18)}… (truncated)`;
   const out: Record<string, unknown> = { ...body, proof: short };
   if (Array.isArray(out.responses)) {
     out.responses = (out.responses as Record<string, unknown>[]).map((r) => ({

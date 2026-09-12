@@ -1,10 +1,17 @@
 /**
  * Types mirroring the real World ID / IDKit v4 surface for Selfie Check.
  *
- * Selfie Check (credential id 11, identifier "selfie") only emits World ID 3.0
- * proofs, so `selfieCheckLegacy()` returns an `IDKitResultV3`. These local types
- * are structurally identical to `@worldcoin/idkit-core`'s so the mock engine and
- * the live widget can feed the exact same verification path.
+ * Selfie Check is available on BOTH protocol versions, which is easy to get
+ * wrong: `selfieCheckLegacy()` is a preset whose JSDoc says it "only returns
+ * World ID 3.0 proofs" — a property of the preset, not of the credential.
+ * The credential itself appears in the 4.0 union
+ * (`CredentialType = "proof_of_human" | "selfie" | "passport" | "mnc"`), so
+ * `CredentialRequest("selfie")` yields a 4.0 proof.
+ *
+ * This app requests 4.0 and the server refuses a 3.0 proof for its action, so
+ * one human cannot hold two unlinkable anchors. The 3.0 shape is still defined
+ * because the v2 verify path accepts only that shape, and because a 3.0 result
+ * has to be recognized in order to be rejected with a useful message.
  */
 
 /** Credential identifier World App returns for Selfie Check. */
@@ -21,12 +28,13 @@ export function isSelfieIdentifier(identifier: string): boolean {
 }
 
 /**
- * `issuer_schema_id` for Selfie Check, a World ID 4.0-only field.
+ * `issuer_schema_id` for Selfie Check — a World ID 4.0-only field.
  *
- * Note that credential id 11 never appears on the wire for Selfie Check: it is
- * a docs URL identifier, and because Selfie Check only emits 3.0 proofs (which
- * carry no `issuer_schema_id`), there is no field in a Selfie Check proof where
- * 11 would show up. Match on the identifier string, not on 11.
+ * Credential id 11 is what the docs URL is keyed on (/world-id/credentials/11),
+ * and it DOES appear on the wire — but only in a 4.0 proof, as
+ * `ResponseItemV4.issuer_schema_id`. A legacy 3.0 proof has no numeric field at
+ * all, so a handler matching on 11 against a 3.0 response silently matches
+ * nothing. Match on the identifier string when handling 3.0.
  */
 export const SELFIE_SCHEMA_ID = 11;
 
@@ -132,3 +140,99 @@ export type VerifyFailure = {
 };
 
 export type VerifyResponse = VerifySuccess | VerifyFailure;
+
+/** Issuer schema ids that appear in a 4.0 proof (from the SDK's own JSDoc). */
+export const SCHEMA_IDS = {
+  proof_of_human: 1,
+  selfie: 11,
+  passport: 9303,
+  mnc: 9310,
+} as const;
+
+/**
+ * One credential response inside a World ID 4.0 result.
+ *
+ * Differs from the 3.0 shape in three ways that matter to a verifier:
+ *   - `proof` is a string ARRAY, not a string (first 4 elements are the
+ *     compressed Groth16 proof, the 5th is the merkle root)
+ *   - there is no separate `merkle_root` field — it lives at `proof[4]`
+ *   - `issuer_schema_id` is present (11 for Selfie Check)
+ */
+export type ResponseItemV4 = {
+  identifier: string;
+  signal_hash?: string;
+  proof: string[];
+  nullifier: string;
+  issuer_schema_id: number;
+  expires_at_min?: number;
+};
+
+/** World ID 4.0 result — what `CredentialRequest("selfie")` resolves to. */
+export type IDKitResultV4 = {
+  protocol_version: "4.0";
+  nonce: string;
+  action?: string;
+  action_description?: string;
+  responses: ResponseItemV4[];
+  user_presence_completed?: boolean;
+  environment: string;
+};
+
+/** Either protocol version, as handed back by the widget. */
+export type AnyIDKitResult = IDKitResultV3 | IDKitResultV4;
+
+export function isV4Result(r: AnyIDKitResult): r is IDKitResultV4 {
+  return r.protocol_version === "4.0";
+}
+
+/**
+ * A credential response flattened to one shape, so policy, storage and display
+ * code never branches on protocol version.
+ *
+ * `merkleRoot` is null for 4.0 only in the sense that it is not a distinct
+ * field — it is extracted from `proof[4]` where present.
+ */
+export type NormalizedCredential = {
+  protocolVersion: "3.0" | "4.0";
+  identifier: string;
+  nullifier: string;
+  signalHash: string | null;
+  merkleRoot: string | null;
+  issuerSchemaId: number | null;
+  expiresAtMin: number | null;
+  /** Display/preview form. The full proof never reaches the client. */
+  proofPreview: string;
+  /** Character count of the encoded proof, for the inspector. */
+  proofLength: number;
+};
+
+export function normalizeV3(item: ResponseItemV3): NormalizedCredential {
+  return {
+    protocolVersion: "3.0",
+    identifier: item.identifier,
+    nullifier: item.nullifier,
+    signalHash: item.signal_hash ?? null,
+    merkleRoot: item.merkle_root,
+    issuerSchemaId: null,
+    expiresAtMin: null,
+    proofPreview: `${item.proof.slice(0, 34)}…`,
+    proofLength: Math.max(0, item.proof.length - 2),
+  };
+}
+
+export function normalizeV4(item: ResponseItemV4): NormalizedCredential {
+  const joined = item.proof.join("");
+  return {
+    protocolVersion: "4.0",
+    identifier: item.identifier,
+    nullifier: item.nullifier,
+    signalHash: item.signal_hash ?? null,
+    // 5th element is the merkle root; tolerate a shorter array rather than
+    // throwing, since the array length is not enforced by the type.
+    merkleRoot: item.proof[4] ?? null,
+    issuerSchemaId: item.issuer_schema_id,
+    expiresAtMin: item.expires_at_min ?? null,
+    proofPreview: `${item.proof[0]?.slice(0, 34) ?? ""}… (${item.proof.length} elements)`,
+    proofLength: joined.length,
+  };
+}

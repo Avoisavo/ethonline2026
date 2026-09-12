@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DEVELOPER_PORTAL, getConfig } from "./config";
+import { environmentAsymmetry, getConfig } from "./config";
 import { SELFIE_VERIFICATION_LEVEL } from "./types";
 
 /**
@@ -56,28 +56,46 @@ async function postJson(url: string, body: unknown) {
 }
 
 export async function preflight(): Promise<{
-  mode: "live" | "mock";
+  configured: boolean;
   checks: PreflightCheck[];
 }> {
-  const config = getConfig();
+  const result = getConfig();
   const checks: PreflightCheck[] = [];
 
-  if (config.mode === "mock") {
-    checks.push({
-      id: "env",
-      label: "Credentials",
-      status: "blocked",
-      detail: `Missing ${config.missing.join(", ")}.`,
-      fix: "Add them to .env.local and restart the dev server.",
-    });
-    return { mode: "mock", checks };
+  if (!result.ok) {
+    for (const problem of result.problems) {
+      checks.push({
+        id: `env:${problem.name}`,
+        label: problem.name,
+        status: "blocked",
+        detail: problem.issue,
+        fix: problem.fix,
+      });
+    }
+    return { configured: false, checks };
   }
+
+  const config = result.config;
 
   checks.push({
     id: "env",
     label: "Credentials",
     status: "ok",
     detail: `app_id, rp_id and signing key loaded. action="${config.action}".`,
+  });
+
+  // Environment alignment. The mint side accepts sandbox; the verify side's
+  // enum does not, so an explicit sandbox setting is reported as a known
+  // asymmetry rather than being treated as configured-and-fine.
+  const asymmetry = environmentAsymmetry(config);
+  checks.push({
+    id: "environment",
+    label: "Environment",
+    status: asymmetry ? "unknown" : "ok",
+    detail: asymmetry
+      ? `Minting against "${config.environment}"; verifying as "${config.verifiableEnvironment}".`
+      : `Minting and verifying against "${config.environment}".`,
+    fix: asymmetry ?? undefined,
   });
 
   // 1. Can we actually produce an RP signature with this key?
@@ -156,7 +174,7 @@ export async function preflight(): Promise<{
   // 2. Is the v4 endpoint reachable and the RP registration active? This is
   //    the endpoint that actually matters: v4 accepts the legacy 3.0 proofs
   //    Selfie Check emits, keyed by rp_id.
-  const v4 = await postJson(`${DEVELOPER_PORTAL}/api/v4/verify/${config.rpId}`, {
+  const v4 = await postJson(`${config.portal}/api/v4/verify/${config.rpId}`, {
     protocol_version: "3.0",
     nonce: ZERO,
     action: config.action,
@@ -215,7 +233,7 @@ export async function preflight(): Promise<{
   //    That is not a misconfiguration, so report it as information, not a
   //    blocker. It only matters if something still points at v2.
   const v2 = await postJson(
-    `${DEVELOPER_PORTAL}/api/v2/verify/${config.appId}`,
+    `${config.portal}/api/v2/verify/${config.appId}`,
     {
       nullifier_hash: ZERO,
       proof: FAKE_PROOF,
@@ -246,5 +264,5 @@ export async function preflight(): Promise<{
     fix: "Request the Selfie Check beta flag for this app_id via your World contact.",
   });
 
-  return { mode: "live", checks };
+  return { configured: true, checks };
 }

@@ -4,42 +4,37 @@ import type { SelfieCheckConfig } from "./config";
 import {
   MAX_AGE_MAX_SECONDS,
   MAX_AGE_MIN_SECONDS,
-  SELFIE_VERIFICATION_LEVEL,
   isSelfieIdentifier,
   type ResponseItemV3,
-  type ResponseItemV4,
-  type VerifyResponse,
 } from "./types";
 
 /**
  * Server-side proof verification against the Developer Portal.
  *
- * There are TWO endpoints and picking the wrong one wastes a lot of time,
- * because the failure looks like a configuration problem rather than a routing
- * one. Measured against a real RP-registered app:
+ * Verification goes to `POST /api/v4/verify/{rp_id}`, keyed by rp_id. That is
+ * the only path this app uses, and the legacy `POST /api/v2/verify/{app_id}`
+ * is deliberately not implemented — it is unusable here, which costs time to
+ * discover because the failure looks like a configuration problem rather than a
+ * routing one. Measured against this app:
  *
- *   POST /api/v2/verify/{app_id}   — legacy. Resolves the action against a
- *     pre-registered action registry FIRST. On an app that completed World ID
- *     4.0 RP registration it answers `invalid_action` for every action —
- *     including one that visibly exists in the portal — because it reads a
- *     registry this app doesn't populate. Indistinguishable from a typo.
+ *   v2 resolves the action against a pre-registered action registry FIRST. On
+ *   an app that completed World ID 4.0 RP registration it answers
+ *   `invalid_action` for every action — including one that visibly exists in
+ *   the portal — because it reads a registry this app does not populate. That
+ *   is indistinguishable from a typo in the action string.
  *
- *   POST /api/v4/verify/{rp_id}    — current. Accepts legacy 3.0 proofs (which
- *     is all Selfie Check emits) and does NOT consult an action registry at
- *     all: an unregistered action name reaches proof verification just the same,
- *     since in 4.0 the action is an input to the proof rather than a registered
- *     entity. Per-credential outcomes come back in `results[]`.
+ *   v4 does not consult that registry at all: in 4.0 the action is an input to
+ *   the proof rather than a registered entity. Per-credential outcomes come
+ *   back in `results[]`.
  *
- * So: v4 keyed by rp_id is the path for Selfie Check. v2 is kept only for apps
- * that never migrated.
- *
- * A consequence worth noting: because v4 skips the action registry, the
+ * A consequence worth noting: because v4 skips the registry, the
  * `max_verifications` cap that a v2 incognito action carries is not enforced on
- * this path — so a continuity gate re-verifying the same nullifier repeatedly is
- * fine. On v2 that same pattern would jam on `already_verified`.
+ * this path — so a continuity gate re-verifying the same nullifier repeatedly
+ * is fine. On v2 that same pattern would jam on `already_verified`.
+ *
+ * `preflight.ts` still probes v2 as a diagnostic, to show which gate is closed.
+ * Nothing sends a real proof there.
  */
-
-export type VerifyTarget = "v4" | "v2";
 
 export function clampMaxAge(seconds: number | null | undefined): number | null {
   if (seconds == null) return null;
@@ -66,12 +61,12 @@ type V4Response = {
 };
 
 export type VerifyAttempt = {
-  target: VerifyTarget;
+  target: "v4";
   url: string;
   request: Record<string, unknown>;
   status: number;
-  response: VerifyResponse | V4Response;
-  /** Normalized outcome, so callers don't branch on endpoint shape. */
+  response: V4Response;
+  /** Normalized outcome. */
   ok: boolean;
   code?: string;
   guidance?: string;
@@ -101,6 +96,8 @@ const VERIFY_GUIDANCE: Record<string, string> = {
     "This app has not completed RP registration, so v4 cannot serve it. Use /api/v2/verify/{app_id}.",
   world_id_4_not_available:
     "World App on this device predates World ID 4.0. Do NOT silently retry with allow_legacy_proofs: true — accepting both versions gives one human two different nullifiers, which defeats any gate keyed on a single nullifier. Ask the user to update World App.",
+  integrity_verification_failed:
+    "The result's `integrity_bundle` was missing, or its version is not the one Selfie Check 4.0 requires (version 2). The bundle is device-attested by World App and cannot be produced server-side, so this cannot be worked around — forward it from the IDKit result verbatim, and if the version is wrong the World App build cannot satisfy this endpoint.",
   invalid_schema_id:
     "`issuer_schema_id` did not match the requested credential (Selfie Check is 11, proof_of_human is 1). Only 4.0 proofs carry this field.",
 };
@@ -111,80 +108,40 @@ export function verifyGuidance(code?: string): string | undefined {
 
 export type VerifyArgs = {
   config: SelfieCheckConfig;
-  item: ResponseItemV3 | ResponseItemV4;
-  /**
-   * Which protocol version the proof is. This is NOT inferable from the item
-   * alone in a way worth trusting: both shapes carry `identifier`, `nullifier`
-   * and optional `signal_hash`, and the only structural difference is whether
-   * `proof` is a string or an array. Pass it explicitly from the result's
-   * `protocol_version` so a malformed payload cannot route itself.
-   */
-  protocolVersion: "3.0" | "4.0";
+  item: ResponseItemV3;
   action: string;
   /** rp_context nonce the proof was minted against (required by v4). */
   nonce: string;
   maxAgeSeconds?: number | null;
-  /** Defaults to v4, which is correct for any RP-registered app. */
-  target?: VerifyTarget;
 };
-
-function isV4Item(
-  item: ResponseItemV3 | ResponseItemV4,
-): item is ResponseItemV4 {
-  return Array.isArray((item as ResponseItemV4).proof);
-}
 
 export async function verifySelfieProof(
   args: VerifyArgs,
 ): Promise<VerifyAttempt> {
-  const target = args.target ?? "v4";
-  if (target === "v2" && args.protocolVersion === "4.0") {
-    throw new Error(
-      "The v2 legacy endpoint cannot verify a World ID 4.0 proof — its request " +
-        "shape has a single `proof` string and no `issuer_schema_id`. Use v4.",
-    );
-  }
-  return target === "v4" ? verifyV4(args) : verifyV2(args);
+  return verifyV4(args);
 }
 
 async function verifyV4(args: VerifyArgs): Promise<VerifyAttempt> {
-  const { config, item, action, nonce, protocolVersion } = args;
+  const { config, item, action, nonce } = args;
   const url = `${config.portal}/api/v4/verify/${config.rpId}`;
 
-  // The v4 endpoint accepts BOTH native 4.0 proofs and legacy 3.0 proofs, but
-  // the per-credential entry is shaped differently and is not interchangeable:
-  // a 4.0 entry carries `proof` as an array and `issuer_schema_id`, and has no
-  // `merkle_root` field (the root is proof[4]). Sending a 3.0-shaped entry with
-  // protocol_version 4.0 — or the reverse — fails as `invalid_proof` with no
-  // indication that the shape, rather than the proof, was wrong.
-  const response: Record<string, unknown> = isV4Item(item)
-    ? {
-        identifier: item.identifier,
-        proof: item.proof,
-        nullifier: item.nullifier,
-        issuer_schema_id: item.issuer_schema_id,
-        ...(item.signal_hash ? { signal_hash: item.signal_hash } : {}),
-        ...(item.expires_at_min != null
-          ? { expires_at_min: item.expires_at_min }
-          : {}),
-      }
-    : {
-        identifier: item.identifier,
-        proof: item.proof,
-        merkle_root: item.merkle_root,
-        nullifier: item.nullifier,
-        ...(item.signal_hash ? { signal_hash: item.signal_hash } : {}),
-      };
-
+  // Forward the response item THROUGH rather than rebuilding it from the
+  // fields these types know about. This is World's own guidance ("No longer
+  // reshape the payload ... for the verify endpoint", /world-id/4-0-migration),
+  // and it is what lets a field newer than these types still reach the
+  // endpoint.
+  //
+  // v4 accepts a legacy 3.0 proof, which is what Selfie Check emits: a single
+  // `proof` string plus a separate `merkle_root`, and no `issuer_schema_id`.
   const body: Record<string, unknown> = {
-    protocol_version: protocolVersion,
+    protocol_version: "3.0",
     nonce,
     action,
     // The endpoint's enum is production | staging only. Sending it explicitly
-    // rather than relying on the default makes the sandbox asymmetry visible in
+    // rather than relying on the default keeps the mint/verify pair visible in
     // the request the inspector shows, instead of hiding it in a default.
     environment: config.verifiableEnvironment,
-    responses: [response],
+    responses: [{ ...item }],
   };
 
   const { status, json } = await post(url, body);
@@ -217,43 +174,6 @@ async function verifyV4(args: VerifyArgs): Promise<VerifyAttempt> {
   };
 }
 
-async function verifyV2(args: VerifyArgs): Promise<VerifyAttempt> {
-  const { config, item, action } = args;
-  if (isV4Item(item)) {
-    // Unreachable via verifySelfieProof, which rejects this pairing earlier.
-    // Repeated here so verifyV2 is sound if ever called directly.
-    throw new Error("v2 cannot verify a World ID 4.0 proof.");
-  }
-  const maxAge = clampMaxAge(args.maxAgeSeconds);
-  const url = `${config.portal}/api/v2/verify/${config.appId}`;
-
-  const body: Record<string, unknown> = {
-    // v2 renames this field — passing IDKit's `nullifier` through fails with
-    // `invalid_proof` and no hint about which field was wrong.
-    nullifier_hash: item.nullifier,
-    proof: item.proof,
-    merkle_root: item.merkle_root,
-    verification_level: SELFIE_VERIFICATION_LEVEL,
-    action,
-  };
-  if (item.signal_hash) body.signal_hash = item.signal_hash;
-  if (maxAge != null) body.max_age = maxAge;
-
-  const { status, json } = await post(url, body);
-  const res = json as VerifyResponse;
-
-  return {
-    target: "v2",
-    url,
-    request: redact(body, item.proof),
-    status,
-    response: res,
-    ok: res.success === true,
-    code: res.success ? undefined : String(res.code),
-    guidance: res.success ? undefined : verifyGuidance(String(res.code)),
-  };
-}
-
 async function post(url: string, body: unknown) {
   const res = await fetch(url, {
     method: "POST",
@@ -270,18 +190,14 @@ async function post(url: string, body: unknown) {
 }
 
 /** Keep the full proof out of logs and out of the client inspector. */
-function redact(body: Record<string, unknown>, proof: string | string[]) {
-  const first = Array.isArray(proof) ? (proof[0] ?? "") : proof;
-  const short = Array.isArray(proof)
-    ? `${first.slice(0, 18)}… (${proof.length} elements, truncated)`
-    : `${first.slice(0, 18)}… (truncated)`;
-  const out: Record<string, unknown> = { ...body, proof: short };
+function redact(body: Record<string, unknown>, proof: string) {
+  const short = `${proof.slice(0, 18)}… (truncated)`;
+  const out: Record<string, unknown> = { ...body };
   if (Array.isArray(out.responses)) {
     out.responses = (out.responses as Record<string, unknown>[]).map((r) => ({
       ...r,
       proof: short,
     }));
-    delete out.proof;
   }
   return out;
 }

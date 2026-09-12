@@ -8,10 +8,17 @@
  * (`CredentialType = "proof_of_human" | "selfie" | "passport" | "mnc"`), so
  * `CredentialRequest("selfie")` yields a 4.0 proof.
  *
- * This app requests 4.0 and the server refuses a 3.0 proof for its action, so
- * one human cannot hold two unlinkable anchors. The 3.0 shape is still defined
- * because the v2 verify path accepts only that shape, and because a 3.0 result
- * has to be recognized in order to be rejected with a useful message.
+ * This app is World ID **3.0** only, because that is the only version Selfie
+ * Check is actually issuable on. Measured on one device on 2026-09-13:
+ * `selfieCheckLegacy()` verified HTTP 200, while `CredentialRequest("selfie")`
+ * — the 4.0 route — returned `credential_unavailable`, i.e. World App holds no
+ * 4.0 selfie credential to present. The 4.0 shapes are still modelled below and
+ * documented, because the endpoint DOES accept them and the gap is a client-side
+ * issuance gap, not a protocol one.
+ *
+ * Accepting exactly one version is a correctness requirement either way: a
+ * human's 3.0 and 4.0 nullifiers are different, unlinkable values, so accepting
+ * both would let one person hold two anchors.
  */
 
 /** Credential identifier World App returns for Selfie Check. */
@@ -38,15 +45,18 @@ export function isSelfieIdentifier(identifier: string): boolean {
  */
 export const SELFIE_SCHEMA_ID = 11;
 
-/** `verification_level` the legacy verify endpoint expects for Selfie Check. */
-export const SELFIE_VERIFICATION_LEVEL = "selfie";
-
 /** Selfie Check credentials are valid for 90 days from issuance. */
 export const SELFIE_VALIDITY_DAYS = 90;
 
 /** Bounds the verify endpoint enforces on `max_age` (seconds). */
 export const MAX_AGE_MIN_SECONDS = 3600;
 export const MAX_AGE_MAX_SECONDS = 604800;
+
+/**
+ * `verification_level` the legacy v2 verify endpoint expects for Selfie Check.
+ * Unused on the v4 path, which identifies the credential by `identifier`.
+ */
+export const SELFIE_VERIFICATION_LEVEL = "selfie";
 
 /** One credential response inside a World ID 3.0 result. */
 export type ResponseItemV3 = {
@@ -164,7 +174,57 @@ export type ResponseItemV4 = {
   proof: string[];
   nullifier: string;
   issuer_schema_id: number;
-  expires_at_min?: number;
+  /**
+   * Minimum expiration timestamp (unix seconds). REQUIRED, both in the SDK type
+   * and by the endpoint: omitting it from a v4 verify request is rejected with
+   * `validation_error` / "expires_at_min is required for v4".
+   */
+  expires_at_min: number;
+  /**
+   * REQUIRED by the v4 verify endpoint for a Selfie Check 4.0 response —
+   * omitting it is rejected with `validation_error` /
+   * "sybil_score is required for Self Check 4.0 responses" — yet it appears
+   * NOWHERE in @worldcoin/idkit 4.2.3: not in `ResponseItemV4`, not in the
+   * compiled JS, not in the WASM strings.
+   *
+   * It also contradicts the credential page, which states Selfie Check
+   * "returns a proof of the completed check, not a numeric Sybil or uniqueness
+   * score".
+   *
+   * Declared optional here because the SDK cannot guarantee it and this type
+   * describes what may arrive, not what the endpoint demands. Whether World App
+   * actually emits it can only be settled by a real 4.0 proof. This is exactly
+   * why the verify body forwards the response item through rather than
+   * rebuilding it from known fields.
+   */
+  sybil_score?: number;
+  /** Anything else World App sends that these types do not model yet. */
+  [key: string]: unknown;
+};
+
+/** Device signature format used by the integrity bundle. */
+export type IntegritySignatureFormat = "apple_app_attest" | "android_keystore";
+
+/**
+ * World App integrity bundle, proving request-time app integrity.
+ *
+ * Produced by the device (Apple App Attest / Android Keystore) with a JWT from
+ * World's Attestation Gateway, so a server cannot synthesize one.
+ *
+ * The SDK marks this OPTIONAL on the result ("Optional World App integrity
+ * bundle for this proof request"), but the v4 verify endpoint requires it for a
+ * Selfie Check 4.0 response, and requires a specific version:
+ *   `integrity_verification_failed` /
+ *   "Self Check 4.0 responses require an integrity bundle signed with version 2."
+ * Nothing documents which version World App emits, so whether a given build can
+ * satisfy this is only discoverable by running a real proof.
+ */
+export type IntegrityBundle = {
+  version: number;
+  signature_format: IntegritySignatureFormat;
+  timestamp: number;
+  signature: string;
+  jwt: string;
 };
 
 /** World ID 4.0 result — what `CredentialRequest("selfie")` resolves to. */
@@ -176,21 +236,15 @@ export type IDKitResultV4 = {
   responses: ResponseItemV4[];
   user_presence_completed?: boolean;
   environment: string;
+  /** Must be forwarded to the verify endpoint — see IntegrityBundle. */
+  integrity_bundle?: IntegrityBundle;
 };
 
-/** Either protocol version, as handed back by the widget. */
-export type AnyIDKitResult = IDKitResultV3 | IDKitResultV4;
-
-export function isV4Result(r: AnyIDKitResult): r is IDKitResultV4 {
-  return r.protocol_version === "4.0";
-}
-
 /**
- * A credential response flattened to one shape, so policy, storage and display
- * code never branches on protocol version.
+ * A credential response flattened for policy, storage and display.
  *
- * `merkleRoot` is null for 4.0 only in the sense that it is not a distinct
- * field — it is extracted from `proof[4]` where present.
+ * `merkleRoot` is not a distinct field on 4.0 — it is `proof[4]` — so it is
+ * extracted here and is null if the proof array is shorter than expected.
  */
 export type NormalizedCredential = {
   protocolVersion: "3.0" | "4.0";
@@ -213,6 +267,8 @@ export function normalizeV3(item: ResponseItemV3): NormalizedCredential {
     nullifier: item.nullifier,
     signalHash: item.signal_hash ?? null,
     merkleRoot: item.merkle_root,
+    // 3.0 carries no numeric credential field at all, which is why the
+    // identifier string is the ONLY thing identifying the credential here.
     issuerSchemaId: null,
     expiresAtMin: null,
     proofPreview: `${item.proof.slice(0, 34)}…`,
@@ -231,7 +287,7 @@ export function normalizeV4(item: ResponseItemV4): NormalizedCredential {
     // throwing, since the array length is not enforced by the type.
     merkleRoot: item.proof[4] ?? null,
     issuerSchemaId: item.issuer_schema_id,
-    expiresAtMin: item.expires_at_min ?? null,
+    expiresAtMin: item.expires_at_min,
     proofPreview: `${item.proof[0]?.slice(0, 34) ?? ""}… (${item.proof.length} elements)`,
     proofLength: joined.length,
   };

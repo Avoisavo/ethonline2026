@@ -1,7 +1,7 @@
 import "server-only";
 
 import { environmentAsymmetry, getConfig } from "./config";
-import { SELFIE_VERIFICATION_LEVEL } from "./types";
+import { SELFIE_IDENTIFIER } from "./types";
 
 /**
  * Preflight the live integration.
@@ -171,16 +171,21 @@ export async function preflight(): Promise<{
     });
   }
 
-  // 2. Is the v4 endpoint reachable and the RP registration active? This is
-  //    the endpoint that actually matters: v4 accepts the legacy 3.0 proofs
-  //    Selfie Check emits, keyed by rp_id.
+  // 2. Is the v4 endpoint reachable and the RP registration active?
+  //
+  //    The probe body is shaped exactly like a real request from this app — a
+  //    legacy 3.0 entry on the v4 endpoint. Probing with a different shape
+  //    would exercise a path the app never takes, so a shape-specific
+  //    rejection would go unnoticed here and only appear with a real user in
+  //    front of a camera.
   const v4 = await postJson(`${config.portal}/api/v4/verify/${config.rpId}`, {
     protocol_version: "3.0",
     nonce: ZERO,
     action: config.action,
+    environment: config.verifiableEnvironment,
     responses: [
       {
-        identifier: SELFIE_VERIFICATION_LEVEL,
+        identifier: SELFIE_IDENTIFIER,
         proof: FAKE_PROOF,
         merkle_root: ZERO,
         nullifier: ZERO,
@@ -207,6 +212,29 @@ export async function preflight(): Promise<{
       code: v4.code,
       detail:
         "RP registration active and the endpoint reaches proof verification — the test proof was rejected on its merkle root, as expected.",
+    });
+  } else if (v4.code === "integrity_verification_failed") {
+    // The synthetic probe got through app resolution, RP registration and
+    // request validation, and was stopped at the device-attestation gate — the
+    // furthest a server-side probe can reach, since the integrity bundle is
+    // signed by the device and cannot be synthesized.
+    checks.push({
+      id: "rp",
+      label: "Verify endpoint (v4)",
+      status: "ok",
+      code: v4.code,
+      detail:
+        "RP registration active and the request validated — the probe was stopped only at the device-attestation gate, which no server-side probe can pass.",
+      fix: "Selfie Check 4.0 requires an integrity bundle signed with version 2, produced by World App on the device. Only a real scan can satisfy it; if a real proof still fails here, that World App build cannot serve Selfie Check on 4.0.",
+    });
+  } else if (v4.code === "validation_error") {
+    checks.push({
+      id: "rp",
+      label: "Verify endpoint (v4)",
+      status: "blocked",
+      code: v4.code,
+      detail: v4.detail ?? "The request body was rejected before verification.",
+      fix: "A required field is missing from the verify body. Selfie Check 4.0 needs expires_at_min and sybil_score on the credential entry plus a result-level integrity_bundle — sybil_score exists nowhere in @worldcoin/idkit 4.2.3, so forward the response item verbatim rather than rebuilding it.",
     });
   } else if (v4.code === "app_not_migrated") {
     checks.push({
@@ -238,7 +266,7 @@ export async function preflight(): Promise<{
       nullifier_hash: ZERO,
       proof: FAKE_PROOF,
       merkle_root: ZERO,
-      verification_level: SELFIE_VERIFICATION_LEVEL,
+      verification_level: SELFIE_IDENTIFIER,
       action: config.action,
     },
   );

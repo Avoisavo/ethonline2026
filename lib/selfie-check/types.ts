@@ -10,7 +10,24 @@
 /** Credential identifier World App returns for Selfie Check. */
 export const SELFIE_IDENTIFIER = "selfie";
 
-/** `issuer_schema_id` for Selfie Check in World ID 4.0 session proofs. */
+/**
+ * `face` is a backward-compatible alias for the same credential, so a handler
+ * that matches only "selfie" can drop a genuine proof.
+ */
+export const SELFIE_IDENTIFIERS = ["selfie", "face"] as const;
+
+export function isSelfieIdentifier(identifier: string): boolean {
+  return (SELFIE_IDENTIFIERS as readonly string[]).includes(identifier);
+}
+
+/**
+ * `issuer_schema_id` for Selfie Check, a World ID 4.0-only field.
+ *
+ * Note that credential id 11 never appears on the wire for Selfie Check: it is
+ * a docs URL identifier, and because Selfie Check only emits 3.0 proofs (which
+ * carry no `issuer_schema_id`), there is no field in a Selfie Check proof where
+ * 11 would show up. Match on the identifier string, not on 11.
+ */
 export const SELFIE_SCHEMA_ID = 11;
 
 /** `verification_level` the legacy verify endpoint expects for Selfie Check. */

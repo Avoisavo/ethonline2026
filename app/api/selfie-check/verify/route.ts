@@ -15,32 +15,27 @@ import {
 import { accountCookie, resolveAccountId } from "@/lib/selfie-check/session";
 import {
   type AccountRecord,
-  claimAgent,
   getAccount,
   pushEvent,
-  rosterStatus,
   saveAccount,
   shortNullifier,
   toSnapshot,
 } from "@/lib/selfie-check/store";
 import {
-  SCHEMA_IDS,
   SELFIE_IDENTIFIER,
   isSelfieIdentifier,
   normalizeV3,
-  normalizeV4,
-  type AnyIDKitResult,
+  type IDKitResultV3,
   type NormalizedCredential,
   type ResponseItemV3,
-  type ResponseItemV4,
 } from "@/lib/selfie-check/types";
 import { clampMaxAge, verifySelfieProof } from "@/lib/selfie-check/verify";
 
 type Body = {
   /** Which gated action the user is trying to reach. */
   intent?: string;
-  /** The raw IDKit result forwarded from the widget. */
-  result?: AnyIDKitResult;
+  /** The raw IDKit result forwarded from the widget. Must be World ID 4.0. */
+  result?: IDKitResultV3;
 };
 
 export async function POST(request: Request) {
@@ -98,7 +93,7 @@ export async function POST(request: Request) {
       id,
       isNew,
       "wrong_protocol_version",
-      `This deployment accepts World ID ${config.proofVersion} only (WORLD_PROOF_VERSION), got ${String(
+      `This app accepts World ID ${config.proofVersion} only, got ${String(
         (rawResult as { protocol_version?: unknown }).protocol_version,
       )}. The other version's nullifier is a different, unlinkable value, so accepting both would allow two identities per human.`,
     );
@@ -108,12 +103,12 @@ export async function POST(request: Request) {
   //
   // Also unsigned, so it is asserted here rather than assumed from what the
   // widget was configured to request.
-  const found = rawResult.responses?.find((r) =>
+  const found = rawResult.responses?.find((r: ResponseItemV3) =>
     isSelfieIdentifier(r.identifier),
   );
   if (!found) {
     const seen = (rawResult.responses ?? [])
-      .map((r) => r.identifier)
+      .map((r: ResponseItemV3) => r.identifier)
       .join(", ");
     return fail(
       record,
@@ -124,30 +119,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const item = found as ResponseItemV3 | ResponseItemV4;
+  const item = found;
 
-  // ---- Gate 3: issuer_schema_id. 4.0 only — a 3.0 response has no numeric
-  // field at all, which is itself worth stating: on 3.0 the identifier string
-  // checked above is the ONLY thing identifying the credential.
+  // ---- Gate 3 does not exist on 3.0, and that is worth stating rather than
+  // silently skipping.
   //
-  // On 4.0 this check is load-bearing. The nullifier is deterministic over
-  // (human, rp_id, action) and credential-independent, so the nullifier alone
-  // cannot tell you which credential produced it. The schema id is the only
-  // field that can: 11 for Selfie Check, 1 for proof_of_human. Without it a
-  // proof_of_human or passport proof would satisfy a gate that is supposed to
-  // mean "passed a Selfie Check".
-  if (config.proofVersion === "4.0") {
-    const schemaId = (item as ResponseItemV4).issuer_schema_id;
-    if (schemaId !== SCHEMA_IDS.selfie) {
-      return fail(
-        record,
-        id,
-        isNew,
-        "wrong_schema_id",
-        `Expected issuer_schema_id ${SCHEMA_IDS.selfie} (selfie), got ${String(schemaId)}.`,
-      );
-    }
-  }
+  // A 4.0 response carries `issuer_schema_id` (11 for Selfie Check), which is
+  // the only field that proves WHICH credential produced a proof. A 3.0
+  // response has no numeric field at all, so the identifier string checked
+  // above is the sole credential evidence — and the action string is what
+  // scopes the nullifier. That is the concrete assurance cost of 3.0 being the
+  // only issuable version, and why WORLD_ACTION must never be rotated.
 
   // ---- Gate 4: the signal binds the proof to this account.
   //
@@ -173,10 +155,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const cred: NormalizedCredential =
-    config.proofVersion === "4.0"
-      ? normalizeV4(item as ResponseItemV4)
-      : normalizeV3(item as ResponseItemV3);
+  const cred: NormalizedCredential = normalizeV3(item);
 
   // ---- Gate 5: nonce replay. In production this is a UNIQUE constraint; the
   // nonce check is what stops a captured rp_context from being reused.
@@ -195,7 +174,6 @@ export async function POST(request: Request) {
   const verifyAttempt = await verifySelfieProof({
     config,
     item,
-    protocolVersion: config.proofVersion,
     action: config.action,
     nonce: rawResult.nonce,
     maxAgeSeconds: maxAge,
@@ -269,44 +247,6 @@ export async function POST(request: Request) {
   });
   saveAccount(record);
 
-  // ---- Assign the one agent this human is entitled to.
-  //
-  // Keyed on the nullifier, NOT the account cookie. Cookies are free to mint —
-  // clearing site data or opening a private window produces a new account id —
-  // so an account-keyed registry would hand out a fresh agent every time. The
-  // nullifier is the same for this human on this action forever, which is the
-  // only thing here that cannot be reset from the browser.
-  //
-  // Runs after saveAccount so a roster-exhausted claim still leaves the
-  // continuity anchor recorded.
-  const claim = claimAgent(config.action, nullifier, id);
-  if (claim.status !== "exhausted") {
-    pushEvent(record, {
-      at: Date.now(),
-      kind: claim.status === "assigned" ? "agent_assigned" : "agent_reclaimed",
-      summary:
-        claim.status === "assigned"
-          ? `Agent assigned — ${claim.agent.callsign} (${claim.agent.id})`
-          : `Same human, same agent — ${claim.agent.callsign}`,
-      detail:
-        claim.status === "assigned"
-          ? `Bound to nullifier ${shortNullifier(nullifier)} for action "${config.action}". No further agent can be issued to this human.`
-          : `Reclaim #${claim.claim.reclaims} from ${claim.claim.accountIds.length} browser session(s).`,
-      source: "live",
-      verifyStatus: verifyAttempt.status,
-    });
-  } else {
-    pushEvent(record, {
-      at: Date.now(),
-      kind: "agent_unavailable",
-      summary: "No agent available",
-      detail: `All ${claim.total} agents in the roster are claimed by other humans.`,
-      source: "live",
-      verifyStatus: verifyAttempt.status,
-    });
-  }
-  saveAccount(record);
-
   const snapshot = toSnapshot(record);
   const now = Date.now();
 
@@ -343,22 +283,6 @@ export async function POST(request: Request) {
       proofAgeSeconds: proofAgeSeconds(snapshot, now),
       credentialExpiresAt: credentialExpiresAt(snapshot),
     },
-    agent:
-      claim.status === "exhausted"
-        ? {
-            status: "exhausted" as const,
-            roster: rosterStatus(),
-          }
-        : {
-            status: claim.status,
-            id: claim.agent.id,
-            callsign: claim.agent.callsign,
-            role: claim.agent.role,
-            claimedAt: claim.claim.claimedAt,
-            reclaims: claim.claim.reclaims,
-            sessions: claim.claim.accountIds.length,
-            roster: rosterStatus(),
-          },
     decision: intent ? evaluate(intent, snapshot, now) : null,
   });
   if (isNew) res.cookies.set(accountCookie(id));

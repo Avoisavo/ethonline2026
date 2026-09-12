@@ -1,56 +1,53 @@
 "use client";
 
-import { CredentialRequest, IDKitRequestWidget } from "@worldcoin/idkit";
+import {
+  CredentialRequest,
+  IDKitRequestWidget,
+  selfieCheckLegacy,
+} from "@worldcoin/idkit";
 import type { IDKitResult, RpContext } from "@worldcoin/idkit";
 
 import { SELFIE_IDENTIFIER } from "@/lib/selfie-check/types";
 
 /**
- * The real Selfie Check request, used when live credentials are configured.
+ * The real Selfie Check request.
  *
- * This requests a World ID **4.0** proof. Worth spelling out why, because the
- * obvious reading of the SDK points the other way:
+ * Both protocol versions are supported, chosen by WORLD_PROOF_VERSION, and
+ * exactly one is accepted per deployment. The server pins the same value, so a
+ * client cannot pick the other one — a human's 3.0 and 4.0 nullifiers are
+ * different, unlinkable values, and accepting both would let one person hold
+ * two anchors.
  *
- * 1. Selfie Check is available on both protocol versions. `selfieCheckLegacy()`
- *    is a *preset* whose JSDoc says "This preset only returns World ID 3.0
- *    proofs" — that is a property of the preset, not of the credential. The
- *    credential itself is in the 4.0 union:
- *      type CredentialType = "proof_of_human" | "selfie" | "passport" | "mnc"
- *    so `CredentialRequest("selfie")` is the 4.0 route. Neither the credential
- *    page nor the sandbox page mentions either route.
+ * The two shapes are mutually exclusive at the type level:
+ * `IDKitRequestHookConfig` is a `preset XOR constraints` union, so this cannot
+ * be expressed as one element with a conditional prop — hence two branches.
  *
- * 2. `preset` and `constraints` are mutually exclusive on the widget
- *    (IDKitRequestHookConfig is a `preset XOR constraints` union), so moving to
- *    4.0 means dropping `preset` entirely rather than adding to it.
+ *   3.0 — `selfieCheckLegacy()` as `preset`, `allow_legacy_proofs: true`.
+ *         The preset's JSDoc says it "only returns World ID 3.0 proofs", which
+ *         is why `false` cannot work here: the request would have nothing valid
+ *         to return.
+ *   4.0 — `CredentialRequest("selfie")` as `constraints`,
+ *         `allow_legacy_proofs: false`. "selfie" is in the 4.0 credential union
+ *         (`"proof_of_human" | "selfie" | "passport" | "mnc"`), so the
+ *         credential is available on both versions — it is the *preset* that is
+ *         3.0-only, not the credential. Neither the credential page nor the
+ *         sandbox page documents either route.
  *
- * 3. `allow_legacy_proofs` is REQUIRED by `IDKitRequestConfig` (no `?`, no
- *    default) and is `false` here. Its own doc comment is the reason:
- *      true  — accept both v3 and v4. "You must track both v3 and v4
- *              nullifiers to prevent double-claims."
- *      false — only accept v4. "Use after migration cutoff or for new apps."
- *    Accepting both would hand one human two different nullifiers, so any
- *    uniqueness or continuity gate keyed on a single nullifier column could be
- *    satisfied twice. Pinning one protocol version is what makes the anchor
- *    comparison sound.
+ * `environment` comes from WORLD_ENVIRONMENT and is never hardcoded. It selects
+ * the World App connect base URL (world.org / staging.world.org /
+ * sandbox.world.org), so it decides whether the phone can complete the
+ * hand-off at all. It must match the environment the app is provisioned in.
  *
- * 4. The 4.0 nullifier is RP-scoped rather than action-scoped, which is a
- *    stronger primitive for continuity: it does not silently reset if the
- *    action string is ever changed.
- *
- * 5. `rp_context` must be minted server-side per request and is short-lived
- *    (300s default TTL). Reusing one across attempts surfaces as
- *    `rp_signature_expired` or `duplicate_nonce`.
- *
- * If World App reports `world_id_4_not_available`, the device is on a build
- * that predates 4.0 — `face-console.tsx` surfaces that code as-is rather than
- * silently falling back, because a silent fallback to 3.0 would reintroduce the
- * two-nullifiers-per-human problem in (3).
+ * `rp_context` is minted server-side per attempt and lives 300s. Reusing one
+ * surfaces as `rp_signature_expired` or `duplicate_nonce`.
  */
 export default function LiveSelfieCheck({
   appId,
   action,
   rpContext,
   signal,
+  environment,
+  proofVersion,
   open,
   onOpenChange,
   onResult,
@@ -60,23 +57,39 @@ export default function LiveSelfieCheck({
   action: string;
   rpContext: RpContext;
   signal: string;
+  environment: "production" | "staging" | "sandbox";
+  proofVersion: "3.0" | "4.0";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onResult: (result: IDKitResult) => void;
   onFailure: (code: string) => void;
 }) {
+  const shared = {
+    open,
+    onOpenChange,
+    app_id: appId,
+    action,
+    rp_context: rpContext,
+    environment,
+    onSuccess: onResult,
+    onError: (code: unknown) => onFailure(String(code)),
+  } as const;
+
+  if (proofVersion === "3.0") {
+    return (
+      <IDKitRequestWidget
+        {...shared}
+        allow_legacy_proofs
+        preset={selfieCheckLegacy({ signal })}
+      />
+    );
+  }
+
   return (
     <IDKitRequestWidget
-      open={open}
-      onOpenChange={onOpenChange}
-      app_id={appId}
-      action={action}
-      rp_context={rpContext}
+      {...shared}
       allow_legacy_proofs={false}
-      environment="sandbox"
       constraints={CredentialRequest(SELFIE_IDENTIFIER, { signal })}
-      onSuccess={onResult}
-      onError={(code) => onFailure(String(code))}
     />
   );
 }

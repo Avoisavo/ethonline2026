@@ -29,7 +29,8 @@ continuity and freshness signal rather than a personhood oracle.
 
 A note on method: every claim below was checked against the live docs pages, the installed
 `.d.ts` files, or a timestamped event in our own store. We started with 18 candidate findings
-and **discarded 12** after checking — those are listed in §5 so you can see what we got wrong
+and **discarded 11** after checking (a twelfth, the v2 endpoint's behavior, was
+unverified when first written and has since been measured — it is §1.4) — those are listed in §5 so you can see what we got wrong
 about your docs, not just what we think your docs got wrong.
 
 ---
@@ -43,6 +44,7 @@ about your docs, not just what we think your docs got wrong.
 | 3 | No page states that `responses[].signal_hash === hash_to_field(signal)` | High |
 | 4 | Credential `11` cannot be matched on in a legacy 3.0 proof — docs speak in numbers, the wire speaks in strings | High |
 | 5 | The 90-day window is an *inactivity* window, but nothing says whether the nullifier survives re-enrollment | High |
+| 5b | v2 answers `invalid_action` for every action on an RP-registered app, while the docs read as if it still works | High |
 | 6 | `feature_unavailable` is absent from the canonical error-code reference | Medium |
 | 7 | The sandbox page documents zero error codes and zero test users | Medium |
 
@@ -137,7 +139,43 @@ untouched. Re-deriving with `hashSignal` is needed **only** for the independent 
 binding check, which is the "enforce the same value" duty. The docs assert that duty in one
 place and forbid the reshaping in another, without saying the two are different operations.
 
-### 1.4 Nullifier semantics across the 90-day window are unspecified  · High
+### 1.4 "`app_id` is still accepted for backward compatibility" is not true of v2  · High
+
+The v4 reference says:
+
+> Use `rp_id` (`rp_...`) when possible; `app_id` (`app_...`) is still accepted
+> for backward compatibility.
+
+That is about the **v4** path accepting either key. Read quickly — and it is easy
+to read quickly — it suggests the legacy v2 endpoint remains a working fallback
+for an RP-registered app. It does not.
+
+Measured against this app, probing both endpoints with the same deliberately
+invalid proof and the same configured action:
+
+| Endpoint | Code returned | What it means |
+|---|---|---|
+| `POST /api/v4/verify/{rp_id}` | `all_verifications_failed` | reached cryptographic verification — config is correct |
+| `POST /api/v2/verify/{app_id}` | `invalid_action` | never reached the proof at all |
+
+v2 resolves the action against a registry that an RP-registered app does not
+populate, so it answers `invalid_action` for **every** action — including one
+that visibly exists in the portal. The failure is indistinguishable from a typo
+in the action string, which is where the time goes: you check the action, the
+portal, the spelling, and the casing, and none of it is the problem.
+
+Worth noting the second-order effect: because v4 skips that registry, the
+`max_verifications` cap a v2 action carries is not applied on the v4 path. That
+is what makes a continuity gate viable — the same nullifier re-verifying
+repeatedly is fine on v4, where on v2 it would eventually jam on
+`already_verified`. Neither behavior is documented as a difference between the
+endpoints.
+
+**Ask:** say plainly on the verify reference that v2 is unusable once RP
+registration is active, and make `invalid_action` name the registry as the
+cause.
+
+### 1.5 Nullifier semantics across the 90-day window are unspecified  · High
 
 Page 11 says:
 
@@ -155,7 +193,7 @@ silently for any user who lapses — they return looking like a brand-new human,
 This single fact determines whether Selfie Check is usable for continuity at all. It should be
 on page 11 in bold.
 
-### 1.5 What page 11 does *not* cover, and where it actually lives
+### 1.6 What page 11 does *not* cover, and where it actually lives
 
 Page 11 is a 4-section overview (Introduction / How it works / UX Flow / Next steps) with no
 code. Everything an integrator needs is one to three hops away, and the page links to almost
@@ -178,7 +216,7 @@ Also absent everywhere: on-chain verifiability (we assumed none and shipped acco
 limits, biometric-retention detail needed to write a privacy notice, and any MiniKit / World App
 in-app guidance — page 11 documents only external deep-link and desktop-QR flows.
 
-### 1.6 What worked well
+### 1.7 What worked well
 
 - `selfieCheckLegacy({ signal })` as a preset is the right abstraction — one call, no
   credential-matrix reasoning.
@@ -438,7 +476,6 @@ pass and then disproved. Several were wrong *because the docs were better than w
 | `max_age` bounds are undocumented | Documented at `/world-id/reference/api.md:356` as `minimum: 3600, maximum: 604800`. Our constants match exactly. |
 | The `face` → `selfie` alias is undocumented | Documented in the v4 API reference: *"Use `selfie` for Selfie Check (Beta); the historical `face` value remains accepted."* |
 | `hash_to_field` is undocumented | Fully documented at `/world-id/idkit/signatures`, with the Keccak-vs-SHA3 warning and test vectors. Only the `signal_hash` linkage is missing. |
-| Docs push you to v2, which then fails | Docs say *"Use `rp_id` when possible; `app_id` is still accepted for backward compatibility."* That is correct guidance. Our claim that v2 returns `invalid_action` for every action on an RP-registered app is **untested** — we never ran it. We have left the note in our code marked as unverified. |
 | `rp_context` and its TTL are undocumented | Documented at `/world-id/idkit/signatures`. The gap is only that the two Selfie-Check-specific pages never mention it. |
 | v4 silently skips the `max_verifications` cap | The two endpoints document different error sets; we could not show v4 ignores a cap that was actually configured. Endpoint-routing nuance, not a defect. |
 | The 26-vs-29 error-code split is a docs bug | Real divergence, but a version-freshness issue rather than a documentation contradiction. |

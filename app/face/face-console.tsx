@@ -20,9 +20,6 @@ import {
 
 /* ---------------------------------------------------------------- api types */
 
-/** Derived from the server-side builder so the two can't drift. */
-type Scenario = ConsoleState["scenarios"][number];
-
 type PreflightCheck = {
   id: string;
   label: string;
@@ -35,8 +32,7 @@ type PreflightCheck = {
 type VerifyResponse =
   | {
       ok: true;
-      source: "mock" | "live";
-      scenarioId: string | null;
+      source: "live";
       continuityEvent:
         | "anchor_created"
         | "continuity_confirmed"
@@ -45,7 +41,9 @@ type VerifyResponse =
         identifier: string;
         nullifier: string;
         nullifierShort: string;
-        merkle_root: string;
+        merkle_root: string | null;
+        issuer_schema_id: number | null;
+        expires_at_min: number | null;
         signal_hash: string | null;
         proofPreview: string;
         protocol_version: string;
@@ -53,9 +51,11 @@ type VerifyResponse =
       };
       verify: {
         status: number | null;
+        target: string;
+        url: string;
         request: Record<string, unknown>;
         response: unknown;
-        note?: string;
+        environmentNote?: string | null;
       };
       account: {
         continuity: string;
@@ -65,47 +65,9 @@ type VerifyResponse =
       };
       decision: Decision | null;
     }
-  | { ok: false; errorCode: string; detail: string; scenarioId: string | null };
+  | { ok: false; errorCode: string; detail: string };
 
-/* ------------------------------------------------------------ capture flow */
-
-/**
- * Stages of the relying-party journey the sandbox guide describes: request
- * handoff, consent, capture, enrollment/matching, proof generation, delivery.
- * Which stages appear depends on the sandbox user state being simulated.
- */
-const STAGES: Record<string, string[]> = {
-  hot: ["Request handoff", "Consent", "Capture", "Face match", "Proof"],
-  cold: [
-    "Install World App",
-    "Create account",
-    "Request handoff",
-    "Consent",
-    "Capture",
-    "Enroll Selfie Check",
-    "Proof",
-  ],
-  semi_cold: [
-    "Reinstall World App",
-    "Recover account",
-    "Request handoff",
-    "Consent",
-    "Capture",
-    "Face match",
-    "Proof",
-  ],
-};
-
-const GROUP_LABELS: Record<Scenario["group"], string> = {
-  success: "Happy paths",
-  continuity: "Continuity",
-  freshness: "Freshness & expiry",
-  error: "Error codes",
-};
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/** IDKit pulls in WASM, so only load it when live credentials are configured. */
+/** IDKit pulls in WASM, so keep it out of the server bundle and first paint. */
 const LiveSelfieCheck = dynamic(() => import("./live-widget"), { ssr: false });
 
 type LiveContext = {
@@ -123,18 +85,11 @@ export default function FaceConsole({
   initialState: ConsoleState;
 }) {
   const [state, setState] = useState<ConsoleState>(initialState);
-  const [scenarioId, setScenarioId] = useState("hot_same_human");
   const [proof, setProof] = useState<VerifyResponse | null>(null);
-  const [stage, setStage] = useState<string | null>(null);
-  const [stageList, setStageList] = useState<string[]>([]);
   const [attempts, setAttempts] = useState<Record<string, Decision>>({});
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [showRaw, setShowRaw] = useState(false);
-  /** In live mode, fall back to the local engine on demand — Selfie Check is
-   *  feature-flagged per app, so `feature_unavailable` is a likely first
-   *  response and the scenarios stay the only way to exercise the policy. */
-  const [simulate, setSimulate] = useState(false);
   const [pre, setPre] = useState<PreflightCheck[] | null>(null);
   const [preBusy, setPreBusy] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
@@ -152,24 +107,6 @@ export default function FaceConsole({
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-
-  const scenario = useMemo(
-    () => state.scenarios.find((s) => s.id === scenarioId),
-    [state, scenarioId],
-  );
-
-  const grouped = useMemo(() => {
-    const groups: [Scenario["group"], Scenario[]][] = [
-      ["success", []],
-      ["continuity", []],
-      ["freshness", []],
-      ["error", []],
-    ];
-    for (const s of state.scenarios) {
-      groups.find(([g]) => g === s.group)?.[1].push(s);
-    }
-    return groups.filter(([, list]) => list.length > 0);
-  }, [state]);
 
   /** Forward a result to the server and fold the decision back into the UI. */
   const submit = useCallback(
@@ -192,55 +129,43 @@ export default function FaceConsole({
     [refresh],
   );
 
-  /** Live path: mint a fresh rp_context, then open the real IDKit widget. */
-  const openLive = useCallback(async (intent?: string) => {
-    pendingIntent.current = intent;
-    setProof(null);
-    const res = await fetch("/api/selfie-check/context", { method: "POST" });
-    const ctx = (await res.json()) as LiveContext & { app_id: string | null };
-    if (!ctx.app_id) {
-      setProof({
-        ok: false,
-        errorCode: "unknown_rp",
-        detail: "Server returned no app_id — check WORLD_APP_ID.",
-        scenarioId: null,
-      });
-      return;
-    }
-    setLiveCtx(ctx as LiveContext);
-    setLiveOpen(true);
-  }, []);
-
+  /**
+   * Mint a fresh rp_context, then open the real IDKit widget.
+   *
+   * A context is minted per attempt rather than cached: it carries a nonce the
+   * server records as spent, and it expires in 300s, so reusing one surfaces as
+   * `duplicate_nonce` or `rp_signature_expired`.
+   */
   const runCheck = useCallback(
     async (intent?: string) => {
       if (running.current) return;
-      if (state.mode === "live" && !simulate) {
-        await openLive(intent);
-        return;
-      }
       running.current = true;
       setBusy(true);
+      pendingIntent.current = intent;
       setProof(null);
-
-      const sc = state.scenarios.find((s) => s.id === scenarioId);
-      const stages = sc?.errorCode
-        ? ["Request handoff", "Consent", "Capture"]
-        : (STAGES[sc?.userState ?? "hot"] ?? STAGES.hot);
-      setStageList(stages);
-
       try {
-        for (const s of stages) {
-          setStage(s);
-          await sleep(300);
+        const res = await fetch("/api/selfie-check/context", {
+          method: "POST",
+        });
+        const ctx = (await res.json()) as
+          | ({ ok: true } & LiveContext)
+          | { ok: false; error: string; problems: { name: string }[] };
+        if (!ctx.ok) {
+          setProof({
+            ok: false,
+            errorCode: ctx.error,
+            detail: `Not configured: ${ctx.problems.map((p) => p.name).join(", ")}. See the preflight panel.`,
+          });
+          return;
         }
-        await submit({ scenarioId, intent });
+        setLiveCtx(ctx);
+        setLiveOpen(true);
       } finally {
-        setStage(null);
         setBusy(false);
         running.current = false;
       }
     },
-    [scenarioId, state, simulate, openLive, submit],
+    [],
   );
 
   const attempt = useCallback(
@@ -292,11 +217,9 @@ export default function FaceConsole({
       ? Math.floor((account.credentialExpiresAt - now) / 86400000)
       : null;
 
-  const liveActive = state.mode === "live" && !simulate;
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300">
-      {liveCtx && state.mode === "live" ? (
+      {liveCtx ? (
         <LiveSelfieCheck
           appId={liveCtx.app_id}
           action={liveCtx.action}
@@ -311,11 +234,7 @@ export default function FaceConsole({
             setProof({
               ok: false,
               errorCode: code,
-              detail:
-                code === "feature_unavailable"
-                  ? "Selfie Check is not enabled for this app_id yet. Request the beta flag, or use Simulate to exercise the policy meanwhile."
-                  : "World App returned this error code.",
-              scenarioId: null,
+              detail: WORLD_APP_ERRORS[code] ?? "World App returned this error code.",
             })
           }
         />
@@ -327,10 +246,16 @@ export default function FaceConsole({
             <h1 className="text-xl font-semibold tracking-tight text-zinc-50">
               Continuity Gate
             </h1>
-            <Pill tone={state.mode === "live" ? "good" : "info"}>
-              {state.mode === "live" ? "live credentials" : "mock engine"}
+            <Pill tone={state.configured ? "good" : "bad"}>
+              {state.configured ? "live" : "not configured"}
             </Pill>
-            <Pill>selfie · id 11</Pill>
+            {state.environment ? <Pill>{state.environment}</Pill> : null}
+            {/* Only shown once a proof has actually been verified by the
+                portal, so the badge never claims more than has happened. */}
+            {proof?.ok && proof.verify.status === 200 ? (
+              <Pill tone="good">proof verified · HTTP 200</Pill>
+            ) : null}
+            <Pill>selfie · schema 11</Pill>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
             Selfie Check is low-friction and{" "}
@@ -343,14 +268,25 @@ export default function FaceConsole({
             <code className="font-mono text-xs text-zinc-300">max_age</code> per
             action tier). A 90-day credential is not a 90-day session.
           </p>
-          {state.mode === "mock" && state.missingEnv.length > 0 ? (
-            <p className="mt-3 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs leading-relaxed text-sky-200/80">
-              Running on the local proof engine — Selfie Check is access-gated
-              beta. Set{" "}
-              <code className="font-mono">{state.missingEnv.join(", ")}</code> in{" "}
-              <code className="font-mono">.env.local</code> to switch to the real
-              IDKit widget and the live verify endpoint. Payload shapes and the
-              policy path are identical either way.
+          {!state.configured ? (
+            <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs leading-relaxed text-rose-200/85">
+              <p className="font-medium">
+                Not configured — every proof here is real, so there is nothing
+                to fall back to.
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {state.problems.map((p) => (
+                  <li key={p.name}>
+                    <code className="font-mono text-rose-200">{p.name}</code> —{" "}
+                    {p.issue} <span className="text-rose-200/60">{p.fix}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {state.environmentNote ? (
+            <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-200/85">
+              {state.environmentNote}
             </p>
           ) : null}
         </header>
@@ -580,8 +516,7 @@ export default function FaceConsole({
 
           {/* ----------------------------------------------- right column */}
           <div className="space-y-4">
-            {state.mode === "live" ? (
-              <Panel
+            <Panel
                 title="Live preflight"
                 hint="Selfie Check has four gates and only one is self-service. This names the blocker instead of letting it surface as a cryptic code later."
                 right={
@@ -643,103 +578,34 @@ export default function FaceConsole({
                     ))}
                   </ul>
                 )}
-              </Panel>
-            ) : null}
+            </Panel>
 
             <Panel
               title="Run a Selfie Check"
-              hint={
-                liveActive
-                  ? "Opens the real IDKit widget against your app_id."
-                  : "Pick a sandbox state or error code, then run it."
-              }
-              right={
-                state.mode === "live" ? (
-                  <button
-                    onClick={() => setSimulate((v) => !v)}
-                    className={`rounded-md border px-2 py-0.5 font-mono text-[10px] transition ${
-                      simulate
-                        ? "border-sky-500/50 bg-sky-500/10 text-sky-300"
-                        : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    {simulate ? "simulating" : "simulate"}
-                  </button>
-                ) : null
-              }
+              hint="Opens the real IDKit widget against your app_id. There is no simulator."
             >
-              {liveActive ? (
-                <p className="mb-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
-                  Signs a fresh <code className="font-mono">rp_context</code>{" "}
-                  server-side, then hands off to World App — deep link on mobile,
-                  QR on desktop. If Selfie Check isn&apos;t flagged on your app
-                  yet you&apos;ll get{" "}
-                  <code className="font-mono text-rose-300">
-                    feature_unavailable
-                  </code>
-                  ; hit <span className="text-sky-300">simulate</span> to keep
-                  testing the policy.
-                </p>
-              ) : scenario ? (
-                <p className="mb-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
-                  {scenario.blurb}
-                </p>
-              ) : null}
+              <p className="mb-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
+                Signs a fresh <code className="font-mono">rp_context</code>{" "}
+                server-side, then hands off to World App — deep link on mobile,
+                QR on desktop. Requests a World ID{" "}
+                <span className="text-zinc-200">4.0</span> proof via{" "}
+                <code className="font-mono">CredentialRequest(&quot;selfie&quot;)</code>
+                , and the server refuses a 3.0 proof for this action so one human
+                cannot end up with two unlinkable anchors.
+              </p>
 
               <button
-                disabled={busy}
+                disabled={busy || !state.configured}
                 onClick={() => runCheck()}
                 className="w-full rounded-lg bg-zinc-100 px-3 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-white disabled:opacity-40"
               >
-                {busy ? "Running…" : "Run Selfie Check"}
+                {busy
+                  ? "Opening World App…"
+                  : state.configured
+                    ? "Run Selfie Check"
+                    : "Configure credentials first"}
               </button>
 
-              {stage ? (
-                <ol className="mt-3 space-y-1">
-                  {stageList.map((s) => {
-                    const idx = stageList.indexOf(s);
-                    const cur = stageList.indexOf(stage);
-                    return (
-                      <li
-                        key={s}
-                        className={`flex items-center gap-2 text-xs ${idx < cur ? "text-zinc-600" : idx === cur ? "text-zinc-100" : "text-zinc-700"}`}
-                      >
-                        <span
-                          className={`size-1.5 rounded-full ${idx < cur ? "bg-zinc-600" : idx === cur ? "animate-pulse bg-sky-400" : "bg-zinc-800"}`}
-                        />
-                        {s}
-                      </li>
-                    );
-                  })}
-                </ol>
-              ) : null}
-
-              <div
-                className={`mt-4 space-y-3 ${liveActive ? "pointer-events-none opacity-35" : ""}`}
-              >
-                {grouped.map(([group, list]) => (
-                  <div key={group}>
-                    <p className="mb-1.5 font-mono text-[10px] tracking-wide text-zinc-600 uppercase">
-                      {GROUP_LABELS[group]}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {list.map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={() => setScenarioId(s.id)}
-                          className={`rounded-md border px-2 py-1 font-mono text-[10px] transition ${
-                            s.id === scenarioId
-                              ? "border-zinc-400 bg-zinc-100 text-zinc-950"
-                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                          }`}
-                        >
-                          {s.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </Panel>
 
             <Panel
@@ -796,7 +662,11 @@ export default function FaceConsole({
                     />
                     <Field
                       label="merkle_root"
-                      value={`${proof.credential.merkle_root.slice(0, 12)}…`}
+                      value={
+                        proof.credential.merkle_root
+                          ? `${proof.credential.merkle_root.slice(0, 12)}…`
+                          : "— (4.0: proof[4])"
+                      }
                       tone="muted"
                     />
                     <Field
@@ -808,6 +678,12 @@ export default function FaceConsole({
                       }
                       tone="muted"
                     />
+                    {proof.credential.issuer_schema_id != null ? (
+                      <Field
+                        label="issuer_schema_id"
+                        value={`${proof.credential.issuer_schema_id} (11 = selfie)`}
+                      />
+                    ) : null}
                     <Field
                       label="proof"
                       value={proof.credential.proofPreview}
@@ -817,7 +693,8 @@ export default function FaceConsole({
                   {showRaw ? (
                     <div className="mt-3">
                       <p className="mb-1.5 font-mono text-[10px] text-zinc-600">
-                        POST /api/v2/verify/{"{app_id}"}
+                        POST /api/v4/verify/{"{rp_id}"} · protocol{" "}
+                        {proof.credential.protocol_version}
                       </p>
                       <Json value={proof.verify.request} />
                       {proof.verify.note ? (

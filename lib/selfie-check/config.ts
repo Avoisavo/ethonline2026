@@ -24,24 +24,32 @@ import "server-only";
  */
 
 /**
- * Which World ID protocol version to request.
+ * The only protocol version this app speaks.
  *
- * Both work for Selfie Check and the choice is not cosmetic:
+ * 3.0, via the `selfieCheckLegacy()` preset with `allow_legacy_proofs: true`.
  *
- *   3.0 — `selfieCheckLegacy({ signal })` as a `preset`, with
- *         allow_legacy_proofs: true. The nullifier is scoped per ACTION.
- *   4.0 — `CredentialRequest("selfie")` as a `constraints` tree, with
- *         allow_legacy_proofs: false. The nullifier is RP-scoped, and the
- *         response carries `issuer_schema_id` (11) so the credential can be
- *         asserted server-side.
+ * Not a preference — it is the only version Selfie Check is issuable on. The
+ * credential IS in the 4.0 union, and `CredentialRequest("selfie")` builds a
+ * valid 4.0 request, but on a real device that request returns
+ * `credential_unavailable`: World App holds no 4.0 selfie credential to
+ * present. Verified the same day that the 3.0 route returned HTTP 200 for the
+ * same human on the same app.
  *
- * Exactly one version is accepted per deployment, whichever is configured. That
- * is a correctness requirement, not a preference: a human's 3.0 and 4.0
- * nullifiers are different, unlinkable values, so accepting both would let one
- * human hold two anchors and claim two agents.
+ * Pinning one version is a correctness requirement, not a preference. A human's
+ * 3.0 and 4.0 nullifiers are different, unlinkable values, so accepting both
+ * would let one person hold two anchors — enroll on one version, present the
+ * other, and read as a different human with nothing failing. This is a code
+ * constant rather than an env var precisely so it cannot be widened by
+ * configuration.
+ *
+ * What 4.0 would buy if it were issuable: an RP-scoped rather than
+ * action-scoped nullifier, and `issuer_schema_id` (11) on the response — the
+ * only field that can prove WHICH credential produced a proof. On 3.0 that
+ * evidence does not exist, so the identifier string is all there is, and the
+ * action string must never be rotated.
  */
-export const PROOF_VERSIONS = ["3.0", "4.0"] as const;
-export type ProofVersion = (typeof PROOF_VERSIONS)[number];
+export const PROOF_VERSION = "3.0" as const;
+export type ProofVersion = typeof PROOF_VERSION;
 
 /** Environments IDKit will mint a proof against. */
 export const ENVIRONMENTS = ["production", "staging", "sandbox"] as const;
@@ -61,7 +69,7 @@ export type SelfieCheckConfig = {
   action: string;
   /** What IDKit mints against. */
   environment: Environment;
-  /** Which protocol version is requested, and the only one accepted. */
+  /** Always PROOF_VERSION. Carried on the config so callers need not import it. */
   proofVersion: ProofVersion;
   /**
    * What the verify request declares. `sandbox` has no counterpart in the
@@ -105,7 +113,6 @@ export function getConfig(): ConfigResult {
   const signingKey = process.env.WORLD_RP_SIGNING_KEY?.trim();
   const action = process.env.WORLD_ACTION?.trim();
   const environment = process.env.WORLD_ENVIRONMENT?.trim();
-  const proofVersion = process.env.WORLD_PROOF_VERSION?.trim();
   const signerAddress = process.env.WORLD_RP_SIGNER_ADDRESS?.trim() || null;
 
   if (!appId) {
@@ -177,23 +184,6 @@ export function getConfig(): ConfigResult {
     env = environment as Environment;
   }
 
-  let version: ProofVersion | null = null;
-  if (!proofVersion) {
-    problems.push({
-      name: "WORLD_PROOF_VERSION",
-      issue: "Not set. There is deliberately no default.",
-      fix: `One of ${PROOF_VERSIONS.join(" | ")}. Only the configured version is accepted — a human's 3.0 and 4.0 nullifiers are different values, so accepting both would allow two identities per person.`,
-    });
-  } else if (!(PROOF_VERSIONS as readonly string[]).includes(proofVersion)) {
-    problems.push({
-      name: "WORLD_PROOF_VERSION",
-      issue: `"${proofVersion}" is not a valid protocol version.`,
-      fix: `One of ${PROOF_VERSIONS.join(" | ")}.`,
-    });
-  } else {
-    version = proofVersion as ProofVersion;
-  }
-
   if (signerAddress && !/^0x[0-9a-fA-F]{40}$/.test(signerAddress)) {
     problems.push({
       name: "WORLD_RP_SIGNER_ADDRESS",
@@ -212,7 +202,7 @@ export function getConfig(): ConfigResult {
       signingKey: signingKey!,
       action: action!,
       environment: env!,
-      proofVersion: version!,
+      proofVersion: PROOF_VERSION,
       // sandbox has no verify-side value; it resolves to the endpoint default.
       verifiableEnvironment: env === "staging" ? "staging" : "production",
       portal: readPortal(),

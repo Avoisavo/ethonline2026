@@ -39,14 +39,20 @@ about your docs, not just what we think your docs got wrong.
 
 | # | Finding | Severity |
 |---|---|---|
-| 1 | `allow_legacy_proofs` is a required boolean, undocumented, and the SDK's own examples disagree on its value | **Blocker** |
-| 2 | IDKit accepts `environment: "sandbox"`; the verify API's `environment` enum has no `sandbox` value | **Blocker** |
-| 3 | No page states that `responses[].signal_hash === hash_to_field(signal)` | High |
-| 4 | Credential `11` cannot be matched on in a legacy 3.0 proof — docs speak in numbers, the wire speaks in strings | High |
-| 5 | The 90-day window is an *inactivity* window, but nothing says whether the nullifier survives re-enrollment | High |
-| 5b | v2 answers `invalid_action` for every action on an RP-registered app, while the docs read as if it still works | High |
-| 6 | `feature_unavailable` is absent from the canonical error-code reference | Medium |
-| 7 | The sandbox page documents zero error codes and zero test users | Medium |
+| 1 | Selfie Check is only issuable on **3.0** — the 4.0 route returns `credential_unavailable`, and no page mentions protocol versions | **Blocker** |
+| 2 | v4 requires `sybil_score`, which exists nowhere in the SDK and contradicts page 11 | **Blocker** |
+| 3 | `allow_legacy_proofs` is a required boolean, undocumented, and the SDK's own examples disagree on its value | **Blocker** |
+| 4 | IDKit accepts `environment: "sandbox"`; the verify API's `environment` enum has no `sandbox` value | **Blocker** |
+| 5 | v4 requires an `integrity_bundle` "version 2" that the SDK marks optional | High |
+| 6 | Sandbox needs a separate TestFlight build — the public World App cannot produce sandbox proofs | High |
+| 7 | v2 answers `invalid_action` for every action on an RP-registered app, while the docs read as if it still works | High |
+| 8 | No page states that `responses[].signal_hash === hash_to_field(signal)` | High |
+| 9 | Credential `11` cannot be matched on in a legacy 3.0 proof — docs speak in numbers, the wire speaks in strings | High |
+| 10 | The 90-day window is an *inactivity* window, but nothing says whether the nullifier survives re-enrollment | High |
+| 11 | Docs tell everyone to email for access that is already enabled for all | Medium |
+| 12 | `created_at` in the verify response is not the verification timestamp | Medium |
+| 13 | `feature_unavailable` and `all_verifications_failed` are absent from the error-code reference | Medium |
+| 14 | The sandbox page documents zero error codes and zero test users | Medium |
 
 ---
 
@@ -175,7 +181,91 @@ endpoints.
 registration is active, and make `invalid_action` name the registry as the
 cause.
 
-### 1.5 Nullifier semantics across the 90-day window are unspecified  · High
+### 1.5 Selfie Check is documented as one credential but is only issuable on 3.0  · Blocker
+
+This is the single most expensive thing we hit, and no page hints at it.
+
+Selfie Check appears in the World ID 4.0 credential union, so the 4.0 route
+type-checks and builds a valid request:
+
+```ts
+type CredentialType = "proof_of_human" | "selfie" | "passport" | "mnc";
+CredentialRequest("selfie", { signal })   // valid 4.0 request
+```
+
+On a real device it cannot be satisfied. Same phone, same app, same human,
+minutes apart:
+
+| Route | Result |
+|---|---|
+| `selfieCheckLegacy()` → 3.0 | **HTTP 200**, `results[].selfie.success: true` |
+| `CredentialRequest("selfie")` → 4.0 | **`credential_unavailable`** |
+
+`credential_unavailable` means World App holds no such credential to present. So
+the credential is enabled for the app, enrolled for the user, and verifiable —
+but only in its 3.0 form. Nothing in the docs says this: **neither
+`/world-id/credentials/11` nor `/world-id/sandbox/testing-selfie-check` mentions
+a protocol version at all** (verified: zero occurrences of "3.0", "4.0" or
+"legacy" in either page's body).
+
+We only reached that conclusion by walking the v4 verify endpoint forward one
+rejection at a time with a synthetic 4.0 body. Each step revealed a requirement
+that is not documented anywhere:
+
+| Probe result | Requirement discovered |
+|---|---|
+| `validation_error` — *"expires_at_min is required for v4"* | required field, at least declared in the SDK type |
+| `validation_error` — *"sybil_score is required for Self Check 4.0 responses"* | **required field that exists nowhere in `@worldcoin/idkit@4.2.3`** |
+| `integrity_verification_failed` — *"Self Check 4.0 responses require an integrity bundle signed with version 2"* | **result-level `integrity_bundle`, marked *optional* in the SDK, at an unspecified version** |
+
+Three things follow, each worth fixing independently:
+
+1. **`sybil_score` is unobtainable and contradicts the docs.** It appears in no
+   `.d.ts`, no compiled JS, and not even in the WASM strings of idkit 4.2.3 — so
+   a request assembled from the SDK's own `ResponseItemV4` can never satisfy the
+   endpoint. It also directly contradicts page 11, which states Selfie Check
+   *"returns a proof of the completed check, **not a numeric Sybil or uniqueness
+   score**."* One of those two is wrong.
+2. **`integrity_bundle` is optional in the type and required by the endpoint.**
+   It is device-attested (Apple App Attest / Android Keystore plus an
+   Attestation Gateway JWT), so it cannot be produced server-side, and it lives
+   at the *result* level rather than on the credential entry — easy to drop
+   while forwarding. No page states which World App version emits "version 2".
+3. **The only workable client strategy is to forward the response item
+   verbatim** — `responses: [{ ...item }]` — never to rebuild it from typed
+   fields. This is World's own guidance (*"No longer reshape the payload ... for
+   the verify endpoint"*, `/world-id/4-0-migration`), but that page frames it as
+   a simplification rather than as the load-bearing requirement it is. Rebuilding
+   from `ResponseItemV4` silently drops `sybil_score`, because there is no field
+   to read it from.
+
+**Asks:** state the issuable protocol version on page 11; publish `sybil_score`
+in the SDK types or stop requiring it; mark `integrity_bundle` required for the
+credentials that require it and say which World App version satisfies it; and
+make `credential_unavailable` distinguish "you never enrolled" from "this
+credential is not issued on the protocol version you asked for" — they are very
+different problems with the same error code.
+
+### 1.6 The v4 response's `created_at` is not the verification time  · Medium
+
+A freshness gate is the obvious use for a timestamp in the verify response, and
+`created_at` is the only one there. It does not mean what it looks like.
+
+Re-verifying with a brand-new proof — fresh `rp_context` nonce, accepted, HTTP
+200 — returned the **same `created_at`** as a verification two hours earlier. So
+the field tracks the credential or nullifier, not the verify call. Using it as
+"when this proof was verified" made a check completed seconds ago read as two
+hours old, and correctly-configured 1-hour tiers denied it.
+
+Nothing on the verify reference says what `created_at` is relative to. Since
+`max_age` already enforces proof age server-side, the RP's own clock is the
+right source for "when did I verify this" — but that is a conclusion you reach
+after the bug, not from the docs.
+
+**Ask:** document what `created_at` is measured from, or add a field that is
+unambiguously the verification timestamp.
+
+### 1.7 Nullifier semantics across the 90-day window are unspecified  · High
 
 Page 11 says:
 
@@ -193,7 +283,7 @@ silently for any user who lapses — they return looking like a brand-new human,
 This single fact determines whether Selfie Check is usable for continuity at all. It should be
 on page 11 in bold.
 
-### 1.6 What page 11 does *not* cover, and where it actually lives
+### 1.8 What page 11 does *not* cover, and where it actually lives
 
 Page 11 is a 4-section overview (Introduction / How it works / UX Flow / Next steps) with no
 code. Everything an integrator needs is one to three hops away, and the page links to almost
@@ -216,7 +306,7 @@ Also absent everywhere: on-chain verifiability (we assumed none and shipped acco
 limits, biometric-retention detail needed to write a privacy notice, and any MiniKit / World App
 in-app guidance — page 11 documents only external deep-link and desktop-QR flows.
 
-### 1.7 What worked well
+### 1.9 What worked well
 
 - `selfieCheckLegacy({ signal })` as a preset is the right abstraction — one call, no
   credential-matrix reasoning.
@@ -347,7 +437,31 @@ this exact mismatch, which is how we found it.
 **Asks:** add `sandbox` to the verify `environment` enum or document why it is absent; echo the
 resolved environment in the verify response; and say on the sandbox page where the switch lives.
 
-### 3.2 There are no test users
+### 3.2 Sandbox needs a separate app build, and that is easy to miss  · High
+
+The sandbox page says the sandbox World ID app is distributed via **TestFlight
+(iOS)** or a **private Google Play testing link**, and is not in the public app
+stores. That is the single most important operational fact on the page, and it is
+one row in a prose paragraph rather than a prerequisite at the top.
+
+The consequence, which we got wrong for most of the integration: setting
+`environment: "sandbox"` in IDKit while scanning with the **public** World App is
+not a sandbox test. IDKit happily points at `sandbox.world.org`, the public
+production client completes the flow anyway, and the resulting proof verifies
+with `"environment": "production"` in the response. Nothing errors. We shipped a
+hardcoded `environment="sandbox"` for days while every proof was a production
+proof, and only noticed by reading the verify response body.
+
+It compounds with §3.1: because the page documents no environment switch at all,
+there is nothing to cross-check the app build against.
+
+**Asks:** put the TestFlight/private-Play requirement in a prerequisites callout
+at the top of the sandbox page; state plainly that the public World App cannot
+produce sandbox proofs; and have IDKit warn (or the endpoint reject) when a
+production client answers a sandbox request, instead of silently producing a
+production proof.
+
+### 3.3 There are no test users
 
 The sandbox page never says whether test users exist. We found:
 
@@ -373,14 +487,14 @@ demand.
 build this. Failing that, say plainly that face capture requires a real human and real camera,
 so nobody budgets for automated testing.
 
-### 3.3 The sandbox page documents zero error codes
+### 3.4 The sandbox page documents zero error codes
 
 No error enum, no error table, no verification-failure codes, no cancellation handling, no
 retry/backoff guidance, no description of what the user sees on a failed face match, and no
 lockout or rate-limit behavior after repeated failures. For a page whose purpose is testing,
 this is the biggest single omission — the errors *are* the thing you are testing for.
 
-### 3.4 Errors we actually hit
+### 3.5 Errors we actually hit
 
 Distinguishing real from simulated matters here, so: codes below are marked **live** only when
 they are unreachable from our mock engine and therefore came from the real path.
@@ -391,6 +505,9 @@ they are unreachable from our mock engine and therefore came from the real path.
 | `unexpected_response` | **live** | 14:23:59.794 | A **4.0** result arrived where 3.0 was expected |
 | `invalid_signal` | **live** | 14:23:59.782 | Our own cross-account binding guard |
 | `all_verifications_failed` | **live** | preflight | Absent from every published error list — and it is the code that means *your config is correct* |
+| `credential_unavailable` | **live** | 2026-09-13 | On the 4.0 route, while 3.0 verified minutes earlier. Same code is documented as "never enrolled" — see §1.5 |
+| `validation_error` ×2 | **live** | preflight | `expires_at_min` then `sybil_score` required for a 4.0 Selfie Check response |
+| `integrity_verification_failed` | **live** | preflight | Requires an integrity bundle "signed with version 2" |
 | `feature_unavailable` | simulated | — | Not in the canonical error-code reference |
 | `user_rejected`, `verification_rejected`, `credential_unavailable`, `max_verifications_reached`, `invalid_rp_signature`, `rp_signature_expired`, `connection_failed` | simulated | — | Reproduced locally because sandbox cannot trigger them on demand |
 
@@ -405,7 +522,7 @@ Two observations from that table:
   version Selfie Check emits, we had no documented basis for rejecting it either — we had to
   infer 3.0-only from the SDK JSDoc and gate on it defensively.
 
-### 3.5 Edge cases with no sandbox coverage
+### 3.6 Edge cases with no sandbox coverage
 
 Proof freshness (`max_age`), credential aging toward the 90-day boundary, continuity breaks, and
 nonce replay all had to be simulated. `duplicate_nonce` is reachable in our code but never fired
@@ -456,6 +573,14 @@ production actions, or whether an action must be pre-registered for v4 at all.
 - No client-side `rp_context` expiry check: the JS layer validates only presence, never compares
   `expires_at` to now. An expired context fails late and opaquely instead of at construction.
 
+**Broken / misleading (continued)**
+
+- Page 11 tells you to email for access that is already enabled for everyone
+  (§2.2).
+- `credential_unavailable` conflates "user never enrolled" with "this credential
+  is not issued on the protocol version you requested".
+- `created_at` in the verify response is not the verification timestamp (§1.6).
+
 **Hard to test**
 
 1. A second human passing liveness — the core abuse case, and it needs a second human.
@@ -488,20 +613,34 @@ targets are mostly unlinked. Fixing the link graph would resolve a majority of w
 
 ## 6. Prioritized asks
 
-1. Add `sandbox` to the verify `environment` enum, or document its absence. Echo the resolved
-   environment in every verify response. — *unblocks end-to-end sandbox testing*
-2. State on page 11: the identifier string, `allow_legacy_proofs: true`, the protocol version
-   emitted, and whether the nullifier survives re-enrollment.
-3. Publish `feature_unavailable` and `all_verifications_failed` in the error-code reference.
-4. Show the Selfie Check flag's state in the portal, and add a "verify my signing key" button.
-5. Provide sandbox test identities with selectable states — or say plainly that a real human and
-   real camera are required.
-6. Link page 11 to `/world-id/idkit/signatures`, `/api-reference/developer-portal/verify`, and
-   `/world-id/idkit/error-codes`.
-7. Fix `allow_legacy_proofs: false` and the `const { success }` quickstart in the `idkit-core`
-   README, and correct the verify host.
-
----
+1. **State on page 11 which protocol version Selfie Check is issuable on.** The
+   4.0 route type-checks and returns `credential_unavailable` on a real device;
+   nothing in the docs mentions protocol versions. — *this cost us the most time*
+2. **Resolve `sybil_score`:** publish it in the SDK types, or stop requiring it
+   on the verify endpoint, or correct page 11's "not a numeric Sybil score".
+   Right now all three cannot be true at once.
+3. **Mark `integrity_bundle` required** where it is required, and say which World
+   App version emits "version 2".
+4. Add `sandbox` to the verify `environment` enum or document its absence, and
+   echo the resolved environment in every verify response.
+5. **Put the TestFlight/private-Play requirement at the top of the sandbox
+   page,** and say plainly that the public World App cannot produce sandbox
+   proofs.
+6. **Update the "access-gated / request access" callouts** now that Selfie Check
+   is enabled for everyone — or keep them and stop telling people otherwise in
+   chat.
+7. Publish `feature_unavailable`, `all_verifications_failed` and
+   `validation_error` in the error-code reference. Split
+   `credential_unavailable` into "not enrolled" vs "not issued on this protocol
+   version".
+8. Say what `created_at` is measured from, or add a true verification timestamp.
+9. Provide sandbox test identities with selectable states — or say plainly that a
+   real human and real camera are required.
+10. Link page 11 to `/world-id/idkit/signatures`,
+    `/api-reference/developer-portal/verify`, `/world-id/idkit/error-codes`, and
+    `/world-id/sandbox/sandbox-access`.
+11. Fix `allow_legacy_proofs: false` and the `const { success }` quickstart in
+    the `idkit-core` README, and correct the verify host.
 
 ## Appendix — what we built
 
@@ -519,6 +658,16 @@ Four actions across three tiers: `view_balance` (open, no signal), `update_recov
 (sensitive, `max_age=604800`), `withdraw` and `recover_device` (critical, `max_age=3600`). A
 continuity break routes to manual review rather than a retry, because a fresh selfie cannot
 clear a medium-assurance mismatch.
+
+**Final shipped configuration**, and why each value is what it is:
+
+| Setting | Value | Reason |
+|---|---|---|
+| Protocol | 3.0 via `selfieCheckLegacy()` | the only version Selfie Check is issuable on (§1.5) |
+| `allow_legacy_proofs` | `true` | the preset only produces 3.0; `false` leaves nothing to return |
+| Verify endpoint | `/api/v4/verify/{rp_id}` | v2 answers `invalid_action` on an RP-registered app (§1.4) |
+| `WORLD_ENVIRONMENT` | `production` | the public World App is a production client; sandbox needs the TestFlight build (§3.2) |
+| Accepted versions | exactly one | 3.0 and 4.0 nullifiers are different unlinkable values, so accepting both allows two anchors per human |
 
 The integration constraint that took longest to internalize, and which no page warns about: the
 **action string must be stable across sessions.** Nullifiers are action-scoped, so rotating the

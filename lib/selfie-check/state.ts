@@ -7,14 +7,7 @@ import {
   evaluate,
   proofAgeSeconds,
 } from "./policy";
-import { findAgent } from "./agents";
-import {
-  findClaimByNullifier,
-  getAccount,
-  rosterStatus,
-  shortNullifier,
-  toSnapshot,
-} from "./store";
+import { getAccount, shortNullifier, toSnapshot } from "./store";
 
 /**
  * Build the full console state for an account.
@@ -53,33 +46,8 @@ export function buildState(accountId: string | null) {
       continuityBreaks: record.continuityBreaks,
     },
     decisions: ACTIONS.map((a) => evaluate(a, snapshot, now)),
-    // Looked up by the account's ANCHOR nullifier, not the account id: the
-    // claim belongs to the human, so it survives clearing the cookie and
-    // follows the same human into a new browser session.
-    agent: buildAgentView(
-      result.ok ? result.config.action : null,
-      snapshot.anchorNullifier,
-    ),
-    roster: rosterStatus(),
     events: record.events,
     now,
-  };
-}
-
-function buildAgentView(action: string | null, anchorNullifier: string | null) {
-  if (!action || !anchorNullifier) return null;
-  const claim = findClaimByNullifier(action, anchorNullifier);
-  if (!claim) return null;
-  const agent = findAgent(claim.agentId);
-  if (!agent) return null;
-  return {
-    id: agent.id,
-    callsign: agent.callsign,
-    role: agent.role,
-    claimedAt: claim.claimedAt,
-    reclaims: claim.reclaims,
-    sessions: claim.accountIds.length,
-    nullifierShort: shortNullifier(claim.nullifier),
   };
 }
 

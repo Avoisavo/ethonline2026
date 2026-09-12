@@ -1,0 +1,1330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Petri — evolution tree</title>
+<style>
+/* ------------------------------------------------------------------ tokens */
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2;
+  --panel: #fffefb;
+  --panel-2: #f1efe9;
+  --ink: #1b1a17;
+  --ink-2: #56524a;
+  --ink-3: #8b857a;
+  --rule: #ddd9cf;
+  --rule-2: #c7c1b4;
+  --accent: #1f5c3d;
+  --accent-bg: #e4efe6;
+  --bad: #8c2f1d;
+  --bad-bg: #f5e4de;
+  --warn: #7a5710;
+  --warn-bg: #f6ecd5;
+  --cont: #4a3a75;
+  --cont-bg: #eae5f4;
+  --add-bg: #e4efe6;
+  --del-bg: #f5e4de;
+  --shadow: 0 1px 2px rgba(30,25,15,.06), 0 8px 24px rgba(30,25,15,.06);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #14140f;
+    --panel: #1c1c17;
+    --panel-2: #232219;
+    --ink: #ece8dd;
+    --ink-2: #b0aa9c;
+    --ink-3: #7e7869;
+    --rule: #32312a;
+    --rule-2: #4a483e;
+    --accent: #79c295;
+    --accent-bg: #1d2f24;
+    --bad: #e79079;
+    --bad-bg: #331d17;
+    --warn: #d9b45f;
+    --warn-bg: #302614;
+    --cont: #b1a0e0;
+    --cont-bg: #262036;
+    --add-bg: #1d2f24;
+    --del-bg: #331d17;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14140f; --panel: #1c1c17; --panel-2: #232219;
+  --ink: #ece8dd; --ink-2: #b0aa9c; --ink-3: #7e7869;
+  --rule: #32312a; --rule-2: #4a483e;
+  --accent: #79c295; --accent-bg: #1d2f24;
+  --bad: #e79079; --bad-bg: #331d17;
+  --warn: #d9b45f; --warn-bg: #302614;
+  --cont: #b1a0e0; --cont-bg: #262036;
+  --add-bg: #1d2f24; --del-bg: #331d17;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+:root { --sbh: 0px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 14px/1.5 var(--sans);
+  overflow-wrap: break-word;
+}
+a { color: inherit; }
+code, pre, .mono { font-family: var(--mono); font-size: .86em; }
+button { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+
+.wrap { max-width: 1400px; margin: 0 auto; padding: 16px; }
+
+/* ------------------------------------------- the example-data warning strip */
+/* Fixed, never dismissable, above every other layer, in light and in dark.
+   A screenshot of any part of this page contains it. */
+.samplebar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--bad-bg); color: var(--ink);
+  border-bottom: 5px double var(--bad);
+  box-shadow: 0 2px 12px rgba(0,0,0,.18);
+}
+.samplebar .wrap { padding: 9px 16px; }
+.samplebar .sbtitle {
+  display: block; color: var(--bad);
+  font-size: 13px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  line-height: 1.3;
+}
+.samplebar .sbtitle::before { content: "\25B2  "; }
+.samplebar p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; max-width: 95ch; }
+.samplebar code {
+  background: var(--panel); border: 1px solid var(--rule-2); border-radius: 2px; padding: 0 4px;
+}
+@media (max-width: 640px) {
+  /* Still undismissable, still first. It only stops eating a phone screen. */
+  .samplebar .wrap { padding: 7px 14px; }
+  .samplebar .sbtitle { font-size: 12px; letter-spacing: .05em; }
+  .samplebar p { font-size: 11.5px; line-height: 1.35; }
+}
+
+/* ------------------------------------------------------------------ header */
+header.top { border-bottom: 1px solid var(--rule); background: var(--panel); }
+.brandline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.brand { font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.brand .dot { color: var(--accent); }
+.tagline { color: var(--ink-2); font-size: 13px; }
+.srcbadge {
+  margin-left: auto; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  border: 1px solid var(--rule-2); border-radius: 999px; padding: 3px 9px; color: var(--ink-2);
+  white-space: nowrap;
+}
+.srcbadge.sample { border-style: dashed; }
+
+.banners { display: grid; gap: 8px; margin-top: 12px; }
+.banner {
+  border: 1px solid var(--rule-2); border-left-width: 4px; border-radius: 3px;
+  padding: 9px 11px; background: var(--panel-2); font-size: 12.5px; line-height: 1.45;
+}
+.banner b { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; margin-bottom: 3px; }
+.banner.trust { border-left-style: dashed; }
+.banner.mode { border-left-style: double; border-left-width: 5px; }
+.banner .muted { color: var(--ink-2); }
+.banner.src { border-left-style: solid; border-left-color: var(--ink); }
+.banner.example {
+  border-left-style: double; border-left-width: 6px; border-left-color: var(--bad);
+  border-color: var(--bad); background: var(--bad-bg);
+}
+.banner.example b { color: var(--bad); }
+
+.tiles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tile {
+  flex: 1 1 96px; min-width: 92px; background: var(--panel-2);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 8px 10px;
+}
+.tile .n { font-size: 21px; font-weight: 680; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.tile .l { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); margin-top: 1px; }
+.tile.accepted .n { color: var(--accent); }
+.tile.rejected .n { color: var(--bad); }
+.tile.pending  .n { color: var(--warn); }
+.tile.contested .n { color: var(--cont); }
+
+/* ------------------------------------------------------------------- spine */
+.spine { margin-top: 14px; }
+.sechead {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.sechead .note { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink-2); }
+.spinestrip { display: flex; gap: 0; overflow-x: auto; padding-bottom: 4px; }
+.spinestep {
+  flex: 0 0 auto; min-width: 132px; border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--panel); padding: 8px 10px; margin-right: 22px; position: relative;
+  cursor: pointer; text-align: left;
+}
+.spinestep:last-child { margin-right: 0; }
+.spinestep::after {
+  content: "→"; position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-3); font-size: 14px;
+}
+.spinestep:last-child::after { content: ""; }
+.spinestep .sid { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.spinestep .sscore { font-size: 17px; font-weight: 680; font-variant-numeric: tabular-nums; }
+.spinestep .sdelta { font-size: 11.5px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.spinestep .smotif { font-size: 11px; color: var(--ink-2); margin-top: 2px; }
+.meter { height: 4px; background: var(--panel-2); border: 1px solid var(--rule); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--accent); }
+
+/* ------------------------------------------------------------------ layout */
+.cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,460px); gap: 16px; align-items: start; margin-top: 18px; }
+@media (max-width: 980px) { .cols { grid-template-columns: minmax(0,1fr); } }
+
+/* ----------------------------------------------------------------- filters */
+.controls { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 10px; }
+.ctlrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ctlrow + .ctlrow { margin-top: 8px; }
+.ctllabel { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-right: 2px; }
+.toggle {
+  border: 1px solid var(--rule-2); background: var(--panel-2); border-radius: 999px;
+  padding: 4px 10px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.toggle[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.toggle[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+.toggle .g { font-size: 11px; }
+input[type="search"], select {
+  background: var(--panel-2); border: 1px solid var(--rule-2); border-radius: 3px;
+  padding: 5px 8px; font: inherit; font-size: 12.5px; color: var(--ink); min-width: 0;
+}
+input[type="search"] { flex: 1 1 150px; }
+.keephint { font-size: 12px; color: var(--ink-2); margin-top: 8px; border-top: 1px dashed var(--rule); padding-top: 7px; }
+.keephint b { font-weight: 650; }
+
+/* -------------------------------------------------------------------- tree */
+.treebox { margin-top: 12px; }
+ul.tree, ul.kids { list-style: none; margin: 0; padding: 0; }
+ul.kids { margin-left: 13px; padding-left: 14px; border-left: 1px solid var(--rule-2); }
+@media (max-width: 640px) {
+  /* keep the lineage visible without starving deep branches of width */
+  ul.kids { margin-left: 5px; padding-left: 8px; }
+  li.node > .rowwrap::before { left: -8px; width: 6px; }
+}
+li.node { position: relative; margin-top: 6px; }
+li.node > .rowwrap::before {
+  content: ""; position: absolute; left: -14px; top: 22px; width: 12px;
+  border-top: 1px solid var(--rule-2);
+}
+ul.tree > li.node > .rowwrap::before { display: none; }
+.rowwrap { position: relative; }
+
+.row {
+  display: flex; gap: 9px; width: 100%; text-align: left; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--rule); border-left-width: 4px;
+  border-radius: 4px; padding: 8px 10px; align-items: flex-start;
+}
+.row:hover { border-color: var(--rule-2); }
+.row:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.row.sel { box-shadow: var(--shadow); border-color: var(--ink-3); background: var(--panel-2); }
+
+.row .glyph {
+  flex: 0 0 20px; width: 20px; height: 20px; line-height: 19px; text-align: center;
+  font-size: 13px; border: 1px solid currentColor; border-radius: 50%; margin-top: 1px;
+}
+.rowmain { flex: 1 1 auto; min-width: 0; }
+.rowtop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.nid { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.motif { font-size: 12px; color: var(--ink-2); }
+.motif .area { text-transform: uppercase; letter-spacing: .05em; font-size: 10.5px; }
+.delta { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.hyp { display: block; margin-top: 3px; font-size: 13px; line-height: 1.42; color: var(--ink); }
+.rowbot { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+.chip {
+  font-size: 10.5px; letter-spacing: .05em; border: 1px solid var(--rule-2);
+  border-radius: 3px; padding: 1px 5px; color: var(--ink-2); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chip.code { font-weight: 650; letter-spacing: .06em; }
+.chip.live { border-style: solid; border-width: 2px; font-weight: 700; color: var(--ink); }
+.chip.replay { border-style: dashed; }
+.chip.mech { border-style: dotted; font-weight: 650; }
+.chip.tip { font-weight: 700; border-width: 2px; }
+
+/* status: shape + weight first, colour second */
+.row.st-accepted  { border-left-style: solid;  border-left-color: var(--accent); }
+.row.st-rejected  { border-left-style: dashed; border-left-color: var(--bad); }
+.row.st-pending   { border-left-style: dotted; border-left-color: var(--warn); }
+.row.st-contested { border-left-style: double; border-left-width: 5px; border-left-color: var(--cont); }
+.row.st-withdrawn, .row.st-superseded { border-left-style: dotted; }
+.row.st-accepted .nid, .row.st-accepted .hyp { font-weight: 650; }
+.row.st-accepted .glyph { color: var(--accent); background: var(--accent-bg); }
+.row.st-accepted .delta, .row.st-accepted .chip.code { color: var(--accent); }
+.row.st-rejected .glyph { color: var(--bad); background: var(--bad-bg); border-radius: 2px; }
+.row.st-rejected .delta, .row.st-rejected .chip.code { color: var(--bad); }
+.row.st-pending .glyph { color: var(--warn); background: var(--warn-bg); border-radius: 2px; transform: rotate(45deg); }
+.row.st-pending .delta, .row.st-pending .chip.code { color: var(--warn); }
+.row.st-contested .glyph { color: var(--cont); background: var(--cont-bg); }
+.row.st-contested .delta, .row.st-contested .chip.code { color: var(--cont); }
+.row.st-withdrawn .hyp, .row.st-superseded .hyp { text-decoration: line-through; }
+.row.dim { opacity: .34; }
+
+.emptynote { padding: 18px; text-align: center; color: var(--ink-2); border: 1px dashed var(--rule-2); border-radius: 4px; }
+
+/* ------------------------------------------------------------------ detail */
+.detail {
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 4px;
+  position: sticky; top: calc(var(--sbh) + 16px);
+  max-height: calc(100vh - var(--sbh) - 32px); overflow-y: auto;
+}
+@media (max-width: 980px) {
+  .detail {
+    position: fixed; inset: var(--sbh) 0 0 0; z-index: 40; max-height: none; border-radius: 0;
+    border: none; overflow-y: auto;
+  }
+  .detail[hidden] { display: none !important; }
+  .detail.empty { display: none !important; }
+  body.sheet-open { overflow: hidden; }
+}
+.deadlist { display: grid; gap: 7px; }
+.dead {
+  text-align: left; width: 100%; cursor: pointer; background: var(--panel-2);
+  border: 1px solid var(--rule); border-left: 3px dashed var(--bad); border-radius: 3px; padding: 7px 9px;
+}
+.dead:hover { border-color: var(--ink-3); border-left-color: var(--bad); }
+.dead .dhl { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
+.dead .dhl .id { font-family: var(--mono); font-weight: 600; }
+.dead .dhl .dv { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--bad); }
+.dead .dq { display: block; font-size: 12.5px; line-height: 1.4; margin-top: 3px; color: var(--ink-2); }
+.dclose { display: none; }
+@media (max-width: 980px) { .dclose { display: inline-flex; } }
+
+.dhead { padding: 12px 14px; border-bottom: 1px solid var(--rule); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+.dtoprow { display: flex; align-items: center; gap: 8px; }
+.dtoprow .glyph {
+  flex: 0 0 24px; width: 24px; height: 24px; line-height: 23px; text-align: center;
+  font-size: 14px; border: 1px solid currentColor; border-radius: 50%;
+}
+.d-accepted  .dtoprow .glyph { color: var(--accent); background: var(--accent-bg); }
+.d-rejected  .dtoprow .glyph { color: var(--bad); background: var(--bad-bg); border-radius: 2px; }
+.d-pending   .dtoprow .glyph { color: var(--warn); background: var(--warn-bg); border-radius: 2px; }
+.d-contested .dtoprow .glyph { color: var(--cont); background: var(--cont-bg); }
+.dtitle { font-family: var(--mono); font-size: 14px; font-weight: 650; }
+.dstatus { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.btn {
+  border: 1px solid var(--rule-2); background: var(--panel-2); border-radius: 3px;
+  padding: 4px 9px; font-size: 12px; cursor: pointer;
+}
+.btn:hover { border-color: var(--ink-3); }
+
+.dsec { padding: 12px 14px; border-bottom: 1px solid var(--rule); }
+.dsec:last-child { border-bottom: none; }
+.dsec > h3 {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  margin-bottom: 7px;
+}
+.dsec > h3 .sub { text-transform: none; letter-spacing: 0; color: var(--ink-3); font-weight: 400; }
+.quote {
+  font-size: 14.5px; line-height: 1.45; border-left: 3px solid var(--rule-2);
+  padding-left: 10px; margin: 0;
+}
+.reason { font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.kv > div { background: var(--panel-2); border: 1px solid var(--rule); border-radius: 3px; padding: 6px 8px; min-width: 0; }
+.kv .k { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.kv .v { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 1px; }
+.kv .v.sm { font-size: 12px; font-weight: 500; }
+
+table.runs { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+table.runs th, table.runs td { text-align: right; padding: 3px 5px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+table.runs th { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+table.runs td:first-child, table.runs th:first-child { text-align: left; }
+table.runs tr.med td { font-weight: 700; }
+table.runs tr.med td:first-child::after { content: " ◀ median"; font-size: 9.5px; letter-spacing: .05em; color: var(--ink-3); font-weight: 500; }
+.tblscroll { overflow-x: auto; }
+
+.vcard { border: 1px solid var(--rule); border-radius: 4px; padding: 9px 10px; background: var(--panel-2); }
+.vcard + .vcard { margin-top: 8px; }
+.vcard.ignored { border-style: dashed; opacity: .92; }
+.vhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 8px; }
+.vhead .vlabel { font-weight: 650; font-size: 13px; }
+.vhead .vdelta { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 650; }
+.vstamp { font-size: 11px; font-weight: 700; letter-spacing: .08em; border: 1px solid currentColor; border-radius: 2px; padding: 0 4px; }
+.vstamp.yes { color: var(--accent); }
+.vstamp.no  { color: var(--bad); border-style: dashed; }
+.vwhy { font-size: 12px; color: var(--bad); margin-top: 4px; }
+.sigline { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 6px; word-break: break-all; cursor: pointer; }
+.sigline b { color: var(--ink-2); font-weight: 600; }
+
+pre.diff, pre.evi {
+  margin: 0; padding: 8px 0; background: var(--panel-2); border: 1px solid var(--rule);
+  border-radius: 3px; overflow-x: auto; font-size: 11.5px; line-height: 1.5;
+}
+pre.evi { padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+.dl { display: block; padding: 0 10px; white-space: pre; }
+.dl.add { background: var(--add-bg); color: var(--accent); font-weight: 600; }
+.dl.del { background: var(--del-bg); color: var(--bad); font-weight: 600; text-decoration: line-through; text-decoration-thickness: 1px; }
+.dl.hunk { color: var(--ink-3); font-weight: 600; }
+.dl.meta { color: var(--ink-2); font-weight: 600; }
+
+.mechbox { border: 1px dotted var(--bad); border-radius: 3px; padding: 9px 10px; background: var(--bad-bg); }
+.mechbox .mcls { font-weight: 700; font-size: 12.5px; letter-spacing: .04em; color: var(--bad); }
+.mechbox .mcmd { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin-top: 3px; word-break: break-all; }
+
+.lineage { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; }
+.lineage button { border: none; background: none; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+.lineage .sep { color: var(--ink-3); }
+.idline { font-family: var(--mono); font-size: 11px; color: var(--ink-2); word-break: break-all; cursor: pointer; }
+
+/* ----------------------------------------------------------------- ledgers */
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 12px 14px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+table.data th { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+table.data td:first-child, table.data th:first-child { text-align: left; }
+table.data tbody tr:hover { background: var(--panel-2); }
+.verdictlab { font-size: 10px; letter-spacing: .07em; border: 1px solid var(--rule-2); border-radius: 2px; padding: 0 4px; }
+.verdictlab.prod { border-color: var(--accent); color: var(--accent); font-weight: 650; }
+.verdictlab.sat { border-style: dashed; color: var(--bad); }
+.verdictlab.never { border-style: dotted; color: var(--ink-3); }
+
+footer.foot { margin-top: 22px; border-top: 1px solid var(--rule); padding: 14px 0 30px; font-size: 12.5px; color: var(--ink-2); }
+footer.foot code { background: var(--panel-2); border: 1px solid var(--rule); border-radius: 2px; padding: 1px 5px; }
+footer.foot p { margin: 0 0 7px; max-width: 70ch; }
+.kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--rule-2); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.legend i { font-style: normal; width: 18px; height: 18px; line-height: 17px; text-align: center; border: 1px solid currentColor; font-size: 11px; }
+.legend i.a { color: var(--accent); background: var(--accent-bg); border-radius: 50%; }
+.legend i.r { color: var(--bad); background: var(--bad-bg); }
+.legend i.p { color: var(--warn); background: var(--warn-bg); transform: rotate(45deg); }
+.legend i.c { color: var(--cont); background: var(--cont-bg); border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<!--
+  The warning strip below is shown whenever the page is rendering its built-in
+  example tree. It is not dismissable. It is removed only when a real export
+  loads. Do not turn it into a tooltip.
+-->
+<div class="samplebar" id="samplebar" hidden>
+  <div class="wrap">
+    <b class="sbtitle">Example data — nothing on this page was measured</b>
+    <p>This is a six-node example that shows the page layout. No harness ran. No benchmark ran.
+      No key signed anything. Every score, id, signature and timestamp below was written by hand
+      and proves nothing. To see a real tree, run
+      <code>pnpm petri export --out web/tree.json</code> and serve this directory.</p>
+  </div>
+</div>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brandline">
+      <div class="brand">Petri<span class="dot">.</span></div>
+      <div class="tagline" id="tagline"></div>
+      <div class="srcbadge" id="srcbadge">loading</div>
+    </div>
+    <div class="banners" id="banners"></div>
+    <div class="tiles" id="tiles"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="spine">
+    <div class="sechead">
+      <span>Accepted spine</span>
+      <span class="note" id="spinenote"></span>
+    </div>
+    <div class="spinestrip" id="spinestrip"></div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <div class="controls">
+        <div class="ctlrow">
+          <span class="ctllabel">Status</span>
+          <span id="statusToggles"></span>
+        </div>
+        <div class="ctlrow">
+          <span class="ctllabel">Area</span>
+          <select id="areaSel"><option value="">every area</option></select>
+          <select id="sortSel">
+            <option value="tree">tree order</option>
+            <option value="delta">biggest delta first</option>
+            <option value="loss">biggest loss first</option>
+            <option value="recent">newest first</option>
+          </select>
+          <input type="search" id="q" placeholder="search hypothesis, motif, id, runner…" aria-label="Search nodes">
+        </div>
+        <p class="keephint">
+          <b>Dead ends are the point.</b> A rejected node is never hidden, never collapsed and
+          never smaller than an accepted one. Filters grey nodes out; they never remove a branch.
+        </p>
+      </div>
+
+      <div class="treebox" id="treebox"></div>
+    </section>
+
+    <aside class="detail" id="detail" hidden aria-label="Node detail"></aside>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="sechead"><span>Area ledger</span><span class="note">derived from the diff, not from what the proposer declared</span></div>
+      <div class="tblscroll"><table class="data" id="areatbl"></table></div>
+    </div>
+    <div class="card">
+      <div class="sechead"><span>Runners</span><span class="note">the ed25519 key is the identity; the label is self-claimed</span></div>
+      <div class="tblscroll"><table class="data" id="runnertbl"></table></div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <p><b>Where the data comes from.</b> This page reads one JSON document. Produce it with
+      <code>pnpm petri export --out web/tree.json</code>, then serve this directory. The shape is
+      written down in <code>NOTES-web.md</code>.</p>
+    <p><b>What the page never does.</b> It never recomputes acceptance, never averages runs and never
+      reads the benchmark tests. The verdict, the reason and the counted/ignored flag all come from
+      <code>evaluate()</code> in <code>src/policy/acceptance.ts</code>.</p>
+    <div class="legend">
+      <span><i class="a">●</i> accepted — solid rule, bold</span>
+      <span><i class="r">✕</i> rejected — dashed rule</span>
+      <span><i class="p">◆</i> pending — dotted rule</span>
+      <span><i class="c">▲</i> contested — double rule</span>
+    </div>
+    <p style="margin-top:10px">
+      Keys: <span class="kbd">↑</span> <span class="kbd">↓</span> move ·
+      <span class="kbd">enter</span> open · <span class="kbd">esc</span> close ·
+      <span class="kbd">/</span> search
+    </p>
+  </footer>
+</main>
+
+<script type="application/json" id="petri-sample">{"protocol":"petri/export/1","generatedAt":1700000000000,"cli":"example (no CLI produced this file)","tree":"example-tree","mode":"replay","trust":"local-unverified","ledger":{"kind":"local","lastSeq":17,"headHash":"0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f","topicId":"","network":""},"bench":{"id":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","name":"example-bench","total":20},"policy":{"maxRunSpreadBp":3000,"maxRunnerDisagreementBp":1000,"minDeltaBp":1000,"minRuns":5,"minVerifications":2,"trustedRunners":[]},"runsPerVerification":5,"runners":[{"pub":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","label":"example-key-1","note":"","reports":4},{"pub":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","label":"example-key-2","note":"","reports":4},{"pub":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","label":"example-key-3","note":"","reports":4}],"stats":{"total":6,"accepted":2,"rejected":2,"pending":1,"contested":1,"withdrawn":0,"superseded":0,"head":"1111111111111111111111111111111111111111111111111111111111111111","tips":["1111111111111111111111111111111111111111111111111111111111111111"]},"nodes":[{"id":"0000000000000000000000000000000000000000000000000000000000000000","short":"00000000","label":"n000","seq":0,"consensusNanos":"1700000000000000000","parent":"root","tree":"example-tree","author":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","authorLabel":"example-key-1","harness":"a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0","bench":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","hypothesis":"The honest baseline. One prompt, one attempt, no repair turn. Every later node is measured against this number.","status":"accepted","statusCode":"ROOT_BASELINE","statusReason":"Root baseline set at +2500bp over the empty harness, by 2 independent runners. Every runner cleared the 1000bp margin.","verifiedDeltaBp":2500,"disputed":false,"mode":"replay","trust":"local-unverified","detail":{"proposal":{"hypothesis":"The honest baseline. One prompt, one attempt, no repair turn. Every later node is measured against this number.","falsifiedIf":"A second runner cannot reproduce the baseline median.","primaryArea":"prompt","motif":"baseline-v1","metric":"score","predictedDelta":0,"reasoning":"The root states what the harness does today. It claims nothing beyond that.","whyNotUntested":null,"contradicts":[],"files":[{"path":"harness/prompt.ts","bytes":1610}]},"derivedAreas":["prompt"],"areaMismatch":false,"claimedRuns":[{"passed":4,"scoreBp":2000,"tokens":60000,"wallMs":42000},{"passed":5,"scoreBp":2500,"tokens":61000,"wallMs":42500},{"passed":5,"scoreBp":2500,"tokens":62000,"wallMs":43000},{"passed":5,"scoreBp":2500,"tokens":63000,"wallMs":43500},{"passed":6,"scoreBp":3000,"tokens":64000,"wallMs":44000}],"claimedMedianBp":2500,"parentHarness":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","provenance":{"source":"human","model":"none","promptHash":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","digestHash":"cdcdcdcd","seed":0},"mechanical":{"cls":"ok","command":"","exitCode":0,"evidence":""}},"diff":"--- /dev/null\n+++ b/harness/prompt.ts\n@@ -0,0 +1,4 @@\n+export function buildUserPrompt(task: TaskView): string {\n+  return [`Task: ${task.prompt}`, `Write ${task.entryFile}.`].join(\"\\n\");\n+}","verifications":[{"reportId":"7070707070707070707070707070707070707070707070707070707070707070","runner":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","runnerLabel":"example-key-2","sig":"f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":2500,"seedBase":"5050505050505050505050505050505050505050505050505050505050505050","startedAt":1700000000000,"parent":{"node":"root","medianBp":0,"total":20,"runs":[{"passed":0,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":0,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":60000,"wallMs":42000},{"passed":0,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":0,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":61000,"wallMs":42500},{"passed":0,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":0,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":62000,"wallMs":43000},{"passed":0,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":0,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":63000,"wallMs":43500},{"passed":0,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":0,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":64000,"wallMs":44000}]},"candidate":{"node":"0000000000000000000000000000000000000000000000000000000000000000","medianBp":2500,"total":20,"runs":[{"passed":4,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":2000,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":2500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":2500,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":62000,"wallMs":43000},{"passed":5,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":2500,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":3000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7272727272727272727272727272727272727272727272727272727272727272","runner":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","runnerLabel":"example-key-3","sig":"f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":2500,"seedBase":"5252525252525252525252525252525252525252525252525252525252525252","startedAt":1700007200000,"parent":{"node":"root","medianBp":0,"total":20,"runs":[{"passed":0,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":0,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":60000,"wallMs":42000},{"passed":0,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":0,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":61000,"wallMs":42500},{"passed":0,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":0,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":62000,"wallMs":43000},{"passed":0,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":0,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":63000,"wallMs":43500},{"passed":0,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":0,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":64000,"wallMs":44000}]},"candidate":{"node":"0000000000000000000000000000000000000000000000000000000000000000","medianBp":2500,"total":20,"runs":[{"passed":4,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":2000,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":60000,"wallMs":42000},{"passed":4,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":2000,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":2500,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":62000,"wallMs":43000},{"passed":6,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":3000,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":3000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}}],"costs":{"medianTokens":62000,"medianWallMs":43000,"tokensPerTask":3100}},{"id":"1111111111111111111111111111111111111111111111111111111111111111","short":"11111111","label":"n001","seq":1,"consensusNanos":"1700003600000000000","parent":"0000000000000000000000000000000000000000000000000000000000000000","tree":"example-tree","author":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","authorLabel":"example-key-1","harness":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","bench":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","hypothesis":"The prompt sends symbol names only, so the model guesses argument order. Sending full signatures will raise the median by at least 1000bp.","status":"accepted","statusCode":"WIN","statusReason":"2 independent verifications, every one at or above +1000bp. Worst delta +1500bp. This is a real improvement.","verifiedDeltaBp":1500,"disputed":false,"mode":"replay","trust":"local-unverified","detail":{"proposal":{"hypothesis":"The prompt sends symbol names only, so the model guesses argument order. Sending full signatures will raise the median by at least 1000bp.","falsifiedIf":"The median moves by less than 1000bp with signatures in the prompt.","primaryArea":"prompt","motif":"include-signatures","metric":"score","predictedDelta":1000,"reasoning":"The task view already carries each signature and the baseline throws it away.","whyNotUntested":null,"contradicts":[],"files":[{"path":"harness/prompt.ts","bytes":1735}]},"derivedAreas":["prompt"],"areaMismatch":false,"claimedRuns":[{"passed":7,"scoreBp":3500,"tokens":60000,"wallMs":42000},{"passed":7,"scoreBp":3500,"tokens":61000,"wallMs":42500},{"passed":8,"scoreBp":4000,"tokens":62000,"wallMs":43000},{"passed":8,"scoreBp":4000,"tokens":63000,"wallMs":43500},{"passed":9,"scoreBp":4500,"tokens":64000,"wallMs":44000}],"claimedMedianBp":4000,"parentHarness":"a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0","provenance":{"source":"model","model":"none","promptHash":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","digestHash":"cdcdcdcd","seed":1},"mechanical":{"cls":"ok","command":"","exitCode":0,"evidence":""}},"diff":"--- a/harness/prompt.ts\n+++ b/harness/prompt.ts\n@@ -32,4 +32,5 @@\n-  parts.push(`It must export: ${task.exportedSymbols.map((s) => s.name).join(\", \")}.`);\n+  const sigs = task.exportedSymbols.map((s) => `  ${s.signature ?? s.name}`).join(\"\\n\");\n+  parts.push(`It must export exactly these:\\n${sigs}`);","verifications":[{"reportId":"7373737373737373737373737373737373737373737373737373737373737373","runner":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","runnerLabel":"example-key-2","sig":"f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":1500,"seedBase":"5353535353535353535353535353535353535353535353535353535353535353","startedAt":1700010800000,"parent":{"node":"0000000000000000000000000000000000000000000000000000000000000000","medianBp":2500,"total":20,"runs":[{"passed":4,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":2000,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":2500,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":2500,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":62000,"wallMs":43000},{"passed":5,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":2500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":3000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":64000,"wallMs":44000}]},"candidate":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":3500,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":4000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":4000,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":62000,"wallMs":43000},{"passed":8,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":4000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7575757575757575757575757575757575757575757575757575757575757575","runner":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","runnerLabel":"example-key-3","sig":"f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":1500,"seedBase":"5555555555555555555555555555555555555555555555555555555555555555","startedAt":1700018000000,"parent":{"node":"0000000000000000000000000000000000000000000000000000000000000000","medianBp":2500,"total":20,"runs":[{"passed":4,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":2000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":2500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":2500,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":62000,"wallMs":43000},{"passed":6,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":3000,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":3000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":64000,"wallMs":44000}]},"candidate":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":3500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":60000,"wallMs":42000},{"passed":7,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":3500,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4000,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":4500,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7777777777777777777777777777777777777777777777777777777777777777","runner":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","runnerLabel":"example-key-2","sig":"f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7","counted":false,"ignoredWhy":"a later report from a key that has already voted; one key is one vote","mode":"replay","runs":5,"clean":true,"spreadBp":500,"deltaMedianBp":2000,"seedBase":"5757575757575757575757575757575757575757575757575757575757575757","startedAt":1700025200000,"parent":{"node":"0000000000000000000000000000000000000000000000000000000000000000","medianBp":2500,"total":20,"runs":[{"passed":5,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":2500,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":2500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":2500,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":62000,"wallMs":43000},{"passed":5,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":2500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":3000,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":64000,"wallMs":44000}]},"candidate":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4500,"total":20,"runs":[{"passed":8,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4000,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":4000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":61000,"wallMs":42500},{"passed":9,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":4500,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":4500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}}],"costs":{"medianTokens":62000,"medianWallMs":43000,"tokensPerTask":3100}},{"id":"2222222222222222222222222222222222222222222222222222222222222222","short":"22222222","label":"n002","seq":2,"consensusNanos":"1700007200000000000","parent":"1111111111111111111111111111111111111111111111111111111111111111","tree":"example-tree","author":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","authorLabel":"example-key-2","harness":"a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2","bench":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","hypothesis":"Sampling at a higher temperature will find solutions the greedy decode misses, raising the median by 1000bp.","status":"rejected","statusCode":"REGRESSION","statusReason":"2 independent verifications, every one at or below -1000bp. Best delta -1000bp. This is a measured regression. The change makes the harness worse.","verifiedDeltaBp":-1500,"disputed":false,"mode":"replay","trust":"local-unverified","detail":{"proposal":{"hypothesis":"Sampling at a higher temperature will find solutions the greedy decode misses, raising the median by 1000bp.","falsifiedIf":"The median drops, or moves by less than 1000bp.","primaryArea":"decoding","motif":"raise-temperature","metric":"score","predictedDelta":1000,"reasoning":"The baseline decodes at temperature 0 and never varies its first token.","whyNotUntested":null,"contradicts":[],"files":[{"path":"harness/model.ts","bytes":980}]},"derivedAreas":["decoding"],"areaMismatch":false,"claimedRuns":[{"passed":4,"scoreBp":2000,"tokens":60000,"wallMs":42000},{"passed":5,"scoreBp":2500,"tokens":61000,"wallMs":42500},{"passed":5,"scoreBp":2500,"tokens":62000,"wallMs":43000},{"passed":6,"scoreBp":3000,"tokens":63000,"wallMs":43500},{"passed":6,"scoreBp":3000,"tokens":64000,"wallMs":44000}],"claimedMedianBp":2500,"parentHarness":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","provenance":{"source":"model","model":"none","promptHash":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","digestHash":"cdcdcdcd","seed":2},"mechanical":{"cls":"ok","command":"","exitCode":0,"evidence":""}},"diff":"--- a/harness/model.ts\n+++ b/harness/model.ts\n@@ -11,2 +11,2 @@\n-  temperature: 0,\n+  temperature: 0.8,","verifications":[{"reportId":"7878787878787878787878787878787878787878787878787878787878787878","runner":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","runnerLabel":"example-key-1","sig":"f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":-1500,"seedBase":"5858585858585858585858585858585858585858585858585858585858585858","startedAt":1700028800000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":3500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":4000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4000,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":62000,"wallMs":43000},{"passed":8,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":4000,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":4500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":64000,"wallMs":44000}]},"candidate":{"node":"2222222222222222222222222222222222222222222222222222222222222222","medianBp":2500,"total":20,"runs":[{"passed":4,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":2000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":2500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":2500,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":62000,"wallMs":43000},{"passed":6,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":3000,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":3000,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7171717171717171717171717171717171717171717171717171717171717171","runner":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","runnerLabel":"example-key-3","sig":"f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":-1000,"seedBase":"5151515151515151515151515151515151515151515151515151515151515151","startedAt":1700003600000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":3500,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":60000,"wallMs":42000},{"passed":7,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":3500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":4000,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":4500,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":4500,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":64000,"wallMs":44000}]},"candidate":{"node":"2222222222222222222222222222222222222222222222222222222222222222","medianBp":3000,"total":20,"runs":[{"passed":5,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":2500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":2500,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":61000,"wallMs":42500},{"passed":6,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":3000,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":62000,"wallMs":43000},{"passed":6,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":3000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":63000,"wallMs":43500},{"passed":7,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":3500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}}],"costs":{"medianTokens":62000,"medianWallMs":43000,"tokensPerTask":3100}},{"id":"3333333333333333333333333333333333333333333333333333333333333333","short":"33333333","label":"n003","seq":3,"consensusNanos":"1700010800000000000","parent":"1111111111111111111111111111111111111111111111111111111111111111","tree":"example-tree","author":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","authorLabel":"example-key-1","harness":"a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3","bench":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","hypothesis":"Putting the retrieved files after the task, not before it, will keep the instruction in recent attention and gain 1000bp.","status":"rejected","statusCode":"WITHIN_NOISE","statusReason":"Deltas +0bp, +500bp sit inside the 1000bp noise band. That is a tie, not a regression. The change showed no measurable effect. The node stays in the tree so nobody retries it.","verifiedDeltaBp":0,"disputed":false,"mode":"replay","trust":"local-unverified","detail":{"proposal":{"hypothesis":"Putting the retrieved files after the task, not before it, will keep the instruction in recent attention and gain 1000bp.","falsifiedIf":"The median moves by less than 1000bp.","primaryArea":"retrieval","motif":"reorder-context","metric":"score","predictedDelta":1000,"reasoning":"The task line is currently buried above several hundred lines of context.","whyNotUntested":null,"contradicts":[],"files":[{"path":"harness/context.ts","bytes":1240}]},"derivedAreas":["retrieval"],"areaMismatch":false,"claimedRuns":[{"passed":7,"scoreBp":3500,"tokens":60000,"wallMs":42000},{"passed":8,"scoreBp":4000,"tokens":61000,"wallMs":42500},{"passed":8,"scoreBp":4000,"tokens":62000,"wallMs":43000},{"passed":8,"scoreBp":4000,"tokens":63000,"wallMs":43500},{"passed":9,"scoreBp":4500,"tokens":64000,"wallMs":44000}],"claimedMedianBp":4000,"parentHarness":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","provenance":{"source":"model","model":"none","promptHash":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","digestHash":"cdcdcdcd","seed":3},"mechanical":{"cls":"ok","command":"","exitCode":0,"evidence":""}},"diff":"--- a/harness/context.ts\n+++ b/harness/context.ts\n@@ -8,3 +8,3 @@\n-  return [renderContext(files), renderTask(task)].join(\"\\n\\n\");\n+  return [renderTask(task), renderContext(files)].join(\"\\n\\n\");","verifications":[{"reportId":"7474747474747474747474747474747474747474747474747474747474747474","runner":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","runnerLabel":"example-key-1","sig":"f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4","counted":false,"ignoredWhy":"self-verification: the signer is the node author","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":500,"seedBase":"5454545454545454545454545454545454545454545454545454545454545454","startedAt":1700014400000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":3500,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":4000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":4000,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":62000,"wallMs":43000},{"passed":8,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":4000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":64000,"wallMs":44000}]},"candidate":{"node":"3333333333333333333333333333333333333333333333333333333333333333","medianBp":4500,"total":20,"runs":[{"passed":8,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":4000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":60000,"wallMs":42000},{"passed":9,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":4500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":61000,"wallMs":42500},{"passed":9,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":4500,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":63000,"wallMs":43500},{"passed":10,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":5000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7676767676767676767676767676767676767676767676767676767676767676","runner":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","runnerLabel":"example-key-2","sig":"f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":0,"seedBase":"5656565656565656565656565656565656565656565656565656565656565656","startedAt":1700021600000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":3500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":4000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4000,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":62000,"wallMs":43000},{"passed":8,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":4000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":64000,"wallMs":44000}]},"candidate":{"node":"3333333333333333333333333333333333333333333333333333333333333333","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":3500,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":60000,"wallMs":42000},{"passed":7,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":3500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":4000,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":4500,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7979797979797979797979797979797979797979797979797979797979797979","runner":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","runnerLabel":"example-key-3","sig":"f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":500,"seedBase":"5959595959595959595959595959595959595959595959595959595959595959","startedAt":1700032400000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":3500,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":60000,"wallMs":42000},{"passed":7,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":3500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":4000,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":4500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":4500,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":64000,"wallMs":44000}]},"candidate":{"node":"3333333333333333333333333333333333333333333333333333333333333333","medianBp":4500,"total":20,"runs":[{"passed":8,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4000,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":4000,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":61000,"wallMs":42500},{"passed":9,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":4500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":4500,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":63000,"wallMs":43500},{"passed":10,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":5000,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}}],"costs":{"medianTokens":62000,"medianWallMs":43000,"tokensPerTask":3100}},{"id":"4444444444444444444444444444444444444444444444444444444444444444","short":"44444444","label":"n004","seq":4,"consensusNanos":"1700014400000000000","parent":"1111111111111111111111111111111111111111111111111111111111111111","tree":"example-tree","author":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","authorLabel":"example-key-3","harness":"a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4","bench":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","hypothesis":"Feeding the failing compiler output back for one repair turn will recover the tasks that fail on a single type error, worth 1500bp.","status":"pending","statusCode":"INSUFFICIENT_VERIFICATIONS","statusReason":"0 of 2 independent verifications. The author's own runs never count.","verifiedDeltaBp":null,"disputed":false,"mode":"replay","trust":"local-unverified","detail":{"proposal":{"hypothesis":"Feeding the failing compiler output back for one repair turn will recover the tasks that fail on a single type error, worth 1500bp.","falsifiedIf":"The repair turn does not change the median.","primaryArea":"recovery","motif":"repair-with-error-text","metric":"score","predictedDelta":1500,"reasoning":"Eight of the twenty tasks fail with one diagnostic that names the fix.","whyNotUntested":null,"contradicts":[],"files":[{"path":"harness/repair.ts","bytes":860}]},"derivedAreas":["recovery"],"areaMismatch":false,"claimedRuns":[],"claimedMedianBp":0,"parentHarness":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","provenance":{"source":"model","model":"none","promptHash":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","digestHash":"cdcdcdcd","seed":4},"mechanical":{"cls":"typecheck-failed","command":"pnpm exec tsc -p tsconfig.scratch.json","exitCode":2,"evidence":"harness/repair.ts(23,14): error TS2339: Property 'diagnostics' does not exist on type 'RunResult'.\nharness/repair.ts(31,9): error TS2554: Expected 2 arguments, but got 1."}},"diff":"--- a/harness/repair.ts\n+++ b/harness/repair.ts\n@@ -20,4 +20,6 @@\n+  if (!first.ok) {\n+    return retry(task, first.diagnostics);\n+  }","verifications":[],"costs":{"medianTokens":0,"medianWallMs":0,"tokensPerTask":0}},{"id":"5555555555555555555555555555555555555555555555555555555555555555","short":"55555555","label":"n005","seq":5,"consensusNanos":"1700018000000000000","parent":"1111111111111111111111111111111111111111111111111111111111111111","tree":"example-tree","author":"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2","authorLabel":"example-key-2","harness":"a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5","bench":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","hypothesis":"Drafting twice and keeping the draft that compiles will gain 1500bp for one extra call.","status":"contested","statusCode":"CONTESTED","statusReason":"The verifiers disagree on the sign. Deltas: a1a1a1a1 +1500bp, c3c3c3c3 -1500bp. This node is neither accepted nor rejected. The disagreement is on the record.","verifiedDeltaBp":null,"disputed":true,"mode":"replay","trust":"local-unverified","detail":{"proposal":{"hypothesis":"Drafting twice and keeping the draft that compiles will gain 1500bp for one extra call.","falsifiedIf":"The second draft does not change the median.","primaryArea":"decoding","motif":"second-sampled-draft","metric":"score","predictedDelta":1500,"reasoning":"A draft that fails to compile is cheap to detect and cheap to replace.","whyNotUntested":"The recovery area is open, but this change is about the loop, and the loop has one node only.","contradicts":[{"nodeId":"2222222222222222222222222222222222222222222222222222222222222222","why":"n002 showed sampling alone loses. This samples, then filters on the compiler."}],"files":[{"path":"harness/loop.ts","bytes":1420}]},"derivedAreas":["loop"],"areaMismatch":true,"claimedRuns":[{"passed":8,"scoreBp":4000,"tokens":60000,"wallMs":42000},{"passed":9,"scoreBp":4500,"tokens":61000,"wallMs":42500},{"passed":10,"scoreBp":5000,"tokens":62000,"wallMs":43000},{"passed":10,"scoreBp":5000,"tokens":63000,"wallMs":43500},{"passed":11,"scoreBp":5500,"tokens":64000,"wallMs":44000}],"claimedMedianBp":5000,"parentHarness":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","provenance":{"source":"model","model":"none","promptHash":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","digestHash":"cdcdcdcd","seed":5},"mechanical":{"cls":"ok","command":"","exitCode":0,"evidence":""}},"diff":"--- a/harness/loop.ts\n+++ b/harness/loop.ts\n@@ -14,3 +14,6 @@\n-  return await draft(task);\n+  const [a, b] = await Promise.all([draft(task), draft(task)]);\n+  return compiles(a) ? a : b;","verifications":[{"reportId":"7272727272727272727272727272727272727272727272727272727272727272","runner":"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1","runnerLabel":"example-key-1","sig":"f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":1500,"seedBase":"5252525252525252525252525252525252525252525252525252525252525252","startedAt":1700007200000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2","scoreBp":3500,"seed":"6262626262626262626262626262626262626262626262626262626262626262","tokens":60000,"wallMs":42000},{"passed":8,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":4000,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":4000,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":62000,"wallMs":43000},{"passed":8,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":4000,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":4500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":64000,"wallMs":44000}]},"candidate":{"node":"5555555555555555555555555555555555555555555555555555555555555555","medianBp":5500,"total":20,"runs":[{"passed":10,"resultId":"d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3","scoreBp":5000,"seed":"6363636363636363636363636363636363636363636363636363636363636363","tokens":60000,"wallMs":42000},{"passed":10,"resultId":"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4","scoreBp":5000,"seed":"6464646464646464646464646464646464646464646464646464646464646464","tokens":61000,"wallMs":42500},{"passed":11,"resultId":"d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5","scoreBp":5500,"seed":"6565656565656565656565656565656565656565656565656565656565656565","tokens":62000,"wallMs":43000},{"passed":11,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":5500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":63000,"wallMs":43500},{"passed":12,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":6000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}},{"reportId":"7676767676767676767676767676767676767676767676767676767676767676","runner":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","runnerLabel":"example-key-3","sig":"f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6","counted":true,"ignoredWhy":"","mode":"replay","runs":5,"clean":true,"spreadBp":1000,"deltaMedianBp":-1500,"seedBase":"5656565656565656565656565656565656565656565656565656565656565656","startedAt":1700021600000,"parent":{"node":"1111111111111111111111111111111111111111111111111111111111111111","medianBp":4000,"total":20,"runs":[{"passed":7,"resultId":"d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6","scoreBp":3500,"seed":"6666666666666666666666666666666666666666666666666666666666666666","tokens":60000,"wallMs":42000},{"passed":7,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":3500,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":61000,"wallMs":42500},{"passed":8,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":4000,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":62000,"wallMs":43000},{"passed":9,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":4500,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":63000,"wallMs":43500},{"passed":9,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":4500,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":64000,"wallMs":44000}]},"candidate":{"node":"5555555555555555555555555555555555555555555555555555555555555555","medianBp":2500,"total":20,"runs":[{"passed":4,"resultId":"d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7","scoreBp":2000,"seed":"6767676767676767676767676767676767676767676767676767676767676767","tokens":60000,"wallMs":42000},{"passed":5,"resultId":"d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8","scoreBp":2500,"seed":"6868686868686868686868686868686868686868686868686868686868686868","tokens":61000,"wallMs":42500},{"passed":5,"resultId":"d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9","scoreBp":2500,"seed":"6969696969696969696969696969696969696969696969696969696969696969","tokens":62000,"wallMs":43000},{"passed":6,"resultId":"d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0","scoreBp":3000,"seed":"6060606060606060606060606060606060606060606060606060606060606060","tokens":63000,"wallMs":43500},{"passed":6,"resultId":"d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1","scoreBp":3000,"seed":"6161616161616161616161616161616161616161616161616161616161616161","tokens":64000,"wallMs":44000}]},"env":{"arch":"x64","benchId":"bebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebebe","ledger":"local","mode":"replay","model":"none","nodeVersion":"v24.0.0","petriCommit":"0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c","platform":"linux"}}],"costs":{"medianTokens":62000,"medianWallMs":43000,"tokensPerTask":3100}}]}</script>
+
+<script>
+(() => {
+'use strict';
+
+// ---------------------------------------------------------------- constants
+const AREAS = ['prompt','retrieval','recovery','loop','decoding','budget','verification','decomposition','memory','other'];
+const GLYPH = { accepted:'●', rejected:'✕', pending:'◆', contested:'▲', withdrawn:'⊝', superseded:'⊝' };
+const MECH_GLYPH = '⊘';
+const STATUSES = ['accepted','rejected','pending','contested','withdrawn','superseded'];
+
+// ------------------------------------------------------------------- format
+const bpTxt = (v) => (v === null || v === undefined) ? '—' : (v > 0 ? '+' : '') + v + 'bp';
+const pct = (bp) => (bp / 100).toFixed(bp % 100 === 0 ? 0 : 1) + '%';
+const tok = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+const secs = (ms) => ms >= 60000 ? Math.floor(ms / 60000) + 'm ' + Math.round((ms % 60000) / 1000) + 's'
+                   : (ms / 1000).toFixed(1) + 's';
+const when = (ms) => new Date(ms).toISOString().replace('T', ' ').slice(0, 16) + 'Z';
+// A real export comes from outside this file. A bad timestamp must not blank the page.
+const whenSafe = (ms) => (Number.isFinite(ms) ? when(ms) : 'an unstated time');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt !== undefined) n.textContent = txt; return n; };
+const isMech = (n) => n.detail.mechanical.cls !== 'ok';
+
+// --------------------------------------------------------------------- load
+let DATA = null, BY_ID = new Map(), KIDS = new Map(), ORDER = [], SOURCE = '';
+
+function readEmbedded() {
+  const raw = document.getElementById('petri-sample').textContent;
+  return JSON.parse(raw);
+}
+
+async function load() {
+  const url = new URLSearchParams(location.search).get('data');
+  const tries = url ? [url] : ['tree.json'];
+  for (const t of tries) {
+    try {
+      const r = await fetch(t, { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        if (d && d.protocol === 'petri/export/1') { SOURCE = t; return d; }
+      }
+    } catch (_) { /* file:// blocks fetch. Fall through to the sample. */ }
+  }
+  SOURCE = 'sample';
+  return readEmbedded();
+}
+
+function index() {
+  BY_ID = new Map(DATA.nodes.map((n) => [n.id, n]));
+  KIDS = new Map();
+  for (const n of DATA.nodes) {
+    if (!KIDS.has(n.parent)) KIDS.set(n.parent, []);
+    KIDS.get(n.parent).push(n);
+  }
+  for (const arr of KIDS.values()) arr.sort((a, b) => a.seq - b.seq);
+  ORDER = [];
+  const walk = (pid) => { for (const c of (KIDS.get(pid) || [])) { ORDER.push(c); walk(c.id); } };
+  walk('root');
+  // any node whose parent is missing from the export still gets shown
+  for (const n of DATA.nodes) if (!ORDER.includes(n)) ORDER.push(n);
+}
+
+const areaOf = (n) => (n.detail.derivedAreas && n.detail.derivedAreas[0]) || 'other';
+const countedOf = (n) => n.verifications.filter((v) => v.counted);
+
+// ------------------------------------------------------------------ header
+const isSample = () => SOURCE === 'sample';
+
+/**
+ * Keep the fixed warning strip out of the way of the page it covers.
+ * The strip is fixed, so the body has to carry its height as padding, and the
+ * sticky/fixed detail panel has to start below it.
+ */
+function fitSampleBar() {
+  const bar = document.getElementById('samplebar');
+  const h = isSample() ? bar.offsetHeight : 0;
+  document.body.style.paddingTop = h + 'px';
+  document.documentElement.style.setProperty('--sbh', h + 'px');
+}
+window.addEventListener('resize', fitSampleBar);
+
+function renderHeader() {
+  const sample = isSample();
+
+  // 1. The warning strip. Shown for example data, removed for a real export.
+  document.getElementById('samplebar').hidden = !sample;
+  fitSampleBar();
+
+  // 2. The tab title. A screenshot of the browser chrome says it too.
+  document.title = sample
+    ? 'Petri — EXAMPLE DATA — nothing measured'
+    : 'Petri — ' + DATA.tree + ' — ' + DATA.ledger.kind + ' / ' + DATA.mode;
+
+  // 3. The headline. For a real export it names the tree, the ledger and the mode.
+  document.getElementById('tagline').textContent = sample
+    ? 'Layout example. No measurement produced this tree.'
+    : 'tree ' + DATA.tree + ' · ledger ' + DATA.ledger.kind + ' · mode ' + DATA.mode;
+
+  const b = document.getElementById('srcbadge');
+  b.classList.toggle('sample', sample);
+  if (sample) { b.textContent = 'example data'; b.title = 'No tree.json was reachable, so the page is showing its built-in example. Nothing in it was measured.'; }
+  else { b.textContent = SOURCE; b.title = 'Loaded from ' + SOURCE; }
+
+  const bn = document.getElementById('banners');
+  bn.textContent = '';
+
+  // 4. Example data gets one banner and no more. A trust banner or a mode banner
+  //    would describe a log and a measurement that do not exist.
+  if (sample) {
+    const ex = el('div', 'banner example');
+    ex.innerHTML = '<b>Example data — no harness ran, no benchmark ran, no key signed</b>'
+      + '<span class="muted">Six nodes, written by hand, to show what an accepted, a rejected, a pending and a '
+      + 'contested node look like. The keys are patterns such as <code>a1a1a1a1…</code>, the signatures are '
+      + 'patterns, and the scores were chosen, not measured. Nothing here can be verified, because there is '
+      + 'nothing to verify. Run <code>pnpm petri export --out web/tree.json</code> to replace it with a real tree.</span>';
+    bn.appendChild(ex);
+    renderTiles();
+    return;
+  }
+
+  // 5. A real export. Say where it came from and what the page did with it.
+  const src = el('div', 'banner src');
+  src.innerHTML = '<b>Export — tree ' + esc(DATA.tree) + ' · ledger ' + esc(DATA.ledger.kind)
+    + ' · mode ' + esc(DATA.mode) + '</b>'
+    + '<span class="muted">Read from <code>' + esc(SOURCE) + '</code>, written by ' + esc(DATA.cli || 'the CLI')
+    + ' at ' + whenSafe(DATA.generatedAt) + '. The page recomputes nothing. Every status, every verdict and '
+    + 'every counted/ignored flag on this page was decided by <code>evaluate()</code> in the CLI and copied '
+    + 'into that file.</span>';
+  bn.appendChild(src);
+
+  const trust = el('div', 'banner trust');
+  if (DATA.trust === 'hcs') {
+    trust.innerHTML = '<b>Trust — hedera topic ' + esc(DATA.ledger.topicId) + ' (' + esc(DATA.ledger.network) + ') — public</b>'
+      + '<span class="muted">The topic holds every submission and every signature, in consensus order. '
+      + 'A command that rebuilds the tree from the topic is not in this build. '
+      + 'A topic proves order, time and non-deletion. It does not prove that two keys are two people, and it does not prove a verifier ran the benchmark.</span>';
+  } else {
+    trust.innerHTML = '<b>Trust — local log — unverified</b>'
+      + '<span class="muted">This log is on one machine only. It proves nothing about independence. One person can hold every key in it. '
+      + 'The file can be edited or deleted. Only a Hedera topic proves order, time and non-deletion to a stranger.</span>';
+  }
+  bn.appendChild(trust);
+
+  const liveNodes = DATA.nodes.filter((n) => n.mode === 'live').length;
+  const mode = el('div', 'banner mode');
+  if (DATA.mode === 'replay') {
+    mode.innerHTML = '<b>Mode — replay — this is NOT a new measurement</b>'
+      + '<span class="muted">Replay re-runs recorded harness outputs through the real sandbox. The tests genuinely execute. The harness does not call a model. '
+      + 'A replay number can never be compared against a live number. '
+      + '<b style="display:inline;text-transform:none;letter-spacing:0;font-size:12.5px">Replay runs are deterministic, so two honest verifiers must get identical numbers. '
+      + 'Agreement here is arithmetic, not corroboration. Only a live run makes a second verifier a real check.</b>'
+      + (liveNodes ? ' <b style="display:inline;text-transform:none;letter-spacing:0;font-size:12.5px">' + liveNodes + ' node(s) in this tree were measured live and carry the LIVE badge.</b>' : '')
+      + '</span>';
+  } else {
+    mode.innerHTML = '<b>Mode — live — real model calls</b>'
+      + '<span class="muted">These numbers came from a real model. A live number can never be compared against a replay number.</span>';
+  }
+  bn.appendChild(mode);
+
+  renderTiles();
+}
+
+function renderTiles() {
+  const s = DATA.stats;
+  const tiles = [
+    ['total', s.total, ''],
+    ['accepted', s.accepted, 'accepted'],
+    ['rejected', s.rejected, 'rejected'],
+    ['pending', s.pending, 'pending'],
+    ['contested', s.contested, 'contested'],
+    ['tips', s.tips.length, ''],
+  ];
+  const tl = document.getElementById('tiles');
+  tl.textContent = '';
+  for (const [label, n, cls] of tiles) {
+    const d = el('div', 'tile ' + cls);
+    d.appendChild(el('div', 'n', String(n)));
+    d.appendChild(el('div', 'l', label));
+    tl.appendChild(d);
+  }
+  const head = BY_ID.get(s.head);
+  const b2 = DATA.bench;
+  const extra = el('div', 'tile');
+  extra.appendChild(el('div', 'n', head ? pct(head.detail.claimedMedianBp) : '—'));
+  extra.appendChild(el('div', 'l', 'head score'));
+  extra.title = 'The best accepted node scores ' + (head ? head.detail.claimedMedianBp + 'bp' : '—') + ' over ' + b2.total + ' tasks.';
+  tl.appendChild(extra);
+}
+
+// ------------------------------------------------------------------- spine
+function spineChain() {
+  // root-first walk taking, at each step, the accepted child with the best claimed median
+  const out = [];
+  let cur = (KIDS.get('root') || []).filter((n) => n.status === 'accepted')
+    .sort((a, b) => b.detail.claimedMedianBp - a.detail.claimedMedianBp)[0];
+  while (cur) {
+    out.push(cur);
+    cur = (KIDS.get(cur.id) || []).filter((n) => n.status === 'accepted')
+      .sort((a, b) => b.detail.claimedMedianBp - a.detail.claimedMedianBp)[0];
+  }
+  return out;
+}
+
+function renderSpine() {
+  const chain = spineChain();
+  const strip = document.getElementById('spinestrip');
+  strip.textContent = '';
+  if (!chain.length) { strip.appendChild(el('div', 'emptynote', 'No node has been accepted yet.')); return; }
+  for (const n of chain) {
+    const b = el('button', 'spinestep');
+    b.type = 'button';
+    b.innerHTML =
+      '<div class="sid">' + esc(n.label) + ' · ' + esc(n.short) + '</div>' +
+      '<div class="sscore">' + n.detail.claimedMedianBp + '<span style="font-size:11px;font-weight:400">bp</span></div>' +
+      '<div class="sdelta">' + bpTxt(n.verifiedDeltaBp) + ' verified</div>' +
+      '<div class="meter"><i style="width:' + (n.detail.claimedMedianBp / 100) + '%"></i></div>' +
+      '<div class="smotif">' + esc(n.detail.proposal.motif) + '</div>';
+    b.addEventListener('click', () => select(n.id, true));
+    strip.appendChild(b);
+  }
+  const first = chain[0], last = chain[chain.length - 1];
+  const lift = last.detail.claimedMedianBp - first.detail.claimedMedianBp;
+  document.getElementById('spinenote').textContent =
+    chain.length + ' accepted steps · root ' + first.detail.claimedMedianBp + 'bp → head '
+    + last.detail.claimedMedianBp + 'bp · lift +' + lift + 'bp · '
+    + DATA.stats.tips.length + ' live tip' + (DATA.stats.tips.length === 1 ? '' : 's');
+}
+
+// ----------------------------------------------------------------- filters
+const filters = {
+  status: new Set(STATUSES),   // every status visible, always, by default
+  area: '',
+  q: '',
+  sort: 'tree',
+};
+
+function buildControls() {
+  const holder = document.getElementById('statusToggles');
+  holder.textContent = '';
+  for (const s of STATUSES) {
+    const count = DATA.nodes.filter((n) => n.status === s).length;
+    if (count === 0 && (s === 'withdrawn' || s === 'superseded')) continue;
+    const b = el('button', 'toggle');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', 'true');
+    b.innerHTML = '<span class="g">' + GLYPH[s] + '</span>' + s + ' ' + count;
+    b.addEventListener('click', () => {
+      if (filters.status.has(s)) filters.status.delete(s); else filters.status.add(s);
+      b.setAttribute('aria-pressed', String(filters.status.has(s)));
+      renderTree();
+    });
+    holder.appendChild(b);
+  }
+  const sel = document.getElementById('areaSel');
+  for (const a of AREAS) {
+    const used = DATA.nodes.filter((n) => areaOf(n) === a).length;
+    if (!used) continue;
+    const o = el('option', null, a + ' (' + used + ')');
+    o.value = a;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => { filters.area = sel.value; renderTree(); });
+  document.getElementById('sortSel').addEventListener('change', (e) => { filters.sort = e.target.value; renderTree(); });
+  const q = document.getElementById('q');
+  q.addEventListener('input', () => { filters.q = q.value.trim().toLowerCase(); renderTree(); });
+}
+
+function matches(n) {
+  if (!filters.status.has(n.status)) return false;
+  if (filters.area && areaOf(n) !== filters.area) return false;
+  if (filters.q) {
+    const hay = [n.label, n.short, n.id, n.hypothesis, n.detail.proposal.motif, areaOf(n),
+                 n.statusCode, n.statusReason, n.authorLabel,
+                 n.detail.mechanical.cls,
+                 n.verifications.map((v) => v.runnerLabel + ' ' + v.runner).join(' ')].join(' ').toLowerCase();
+    if (!hay.includes(filters.q)) return false;
+  }
+  return true;
+}
+
+// -------------------------------------------------------------------- tree
+let selected = null;
+
+function rowNode(n) {
+  const wrap = el('div', 'rowwrap');
+  const b = el('button', 'row st-' + n.status);
+  b.type = 'button';
+  b.dataset.id = n.id;
+  if (!matches(n)) b.classList.add('dim');
+  if (selected === n.id) b.classList.add('sel');
+
+  const g = el('span', 'glyph', isMech(n) ? MECH_GLYPH : GLYPH[n.status]);
+  b.appendChild(g);
+
+  const main = el('div', 'rowmain');
+  const top = el('div', 'rowtop');
+  top.appendChild(el('span', 'nid', n.label));
+  const motif = el('span', 'motif');
+  motif.innerHTML = '<span class="area">' + esc(areaOf(n)) + '</span> / ' + esc(n.detail.proposal.motif);
+  top.appendChild(motif);
+  const d = el('span', 'delta', n.verifiedDeltaBp === null ? '—' : bpTxt(n.verifiedDeltaBp));
+  d.title = n.verifiedDeltaBp === null ? 'No agreed delta could be computed.' : 'The most conservative verified delta.';
+  top.appendChild(d);
+  main.appendChild(top);
+
+  main.appendChild(el('span', 'hyp', n.hypothesis));
+
+  const bot = el('div', 'rowbot');
+  bot.appendChild(el('span', 'chip code', n.statusCode));
+  const m = el('span', 'chip ' + n.mode, n.mode.toUpperCase());
+  m.title = n.mode === 'replay'
+    ? 'Measured in replay mode. Recorded harness output, real sandbox, no model call. Never comparable to a live number.'
+    : 'Measured in live mode against a real model.';
+  bot.appendChild(m);
+  if (isMech(n)) {
+    const mc = el('span', 'chip mech', n.detail.mechanical.cls);
+    mc.title = 'This patch never ran. ' + n.detail.mechanical.cls;
+    bot.appendChild(mc);
+  }
+  const cv = countedOf(n).length;
+  const ig = n.verifications.length - cv;
+  bot.appendChild(el('span', 'chip', cv + ' counted' + (ig ? ' · ' + ig + ' ignored' : '')));
+  if (n.detail.claimedMedianBp > 0) bot.appendChild(el('span', 'chip', n.detail.claimedMedianBp + 'bp claimed'));
+  if (DATA.stats.tips.includes(n.id)) bot.appendChild(el('span', 'chip tip', 'TIP'));
+  main.appendChild(bot);
+
+  b.appendChild(main);
+  b.addEventListener('click', () => select(n.id, false));
+  wrap.appendChild(b);
+  return wrap;
+}
+
+function renderTree() {
+  const box = document.getElementById('treebox');
+  box.textContent = '';
+
+  const visible = DATA.nodes.filter(matches);
+  if (!visible.length) {
+    box.appendChild(el('div', 'emptynote', 'No node matches. Clear the filters to see the whole tree again.'));
+    return;
+  }
+
+  if (filters.sort !== 'tree') {
+    const list = [...visible];
+    if (filters.sort === 'delta') list.sort((a, b) => (b.verifiedDeltaBp ?? -1e9) - (a.verifiedDeltaBp ?? -1e9));
+    if (filters.sort === 'loss') list.sort((a, b) => (a.verifiedDeltaBp ?? 1e9) - (b.verifiedDeltaBp ?? 1e9));
+    if (filters.sort === 'recent') list.sort((a, b) => b.seq - a.seq);
+    const ul = el('ul', 'tree');
+    for (const n of list) { const li = el('li', 'node'); li.appendChild(rowNode(n)); ul.appendChild(li); }
+    box.appendChild(ul);
+    return;
+  }
+
+  const build = (pid) => {
+    const kids = KIDS.get(pid) || [];
+    if (!kids.length) return null;
+    const ul = el('ul', pid === 'root' ? 'tree' : 'kids');
+    for (const n of kids) {
+      const li = el('li', 'node');
+      li.appendChild(rowNode(n));
+      const sub = build(n.id);
+      if (sub) li.appendChild(sub);
+      ul.appendChild(li);
+    }
+    return ul;
+  };
+  const tree = build('root');
+  if (tree) box.appendChild(tree);
+}
+
+// ------------------------------------------------------------------ detail
+function runTable(runs, total, label) {
+  const med = [...runs.map((r) => r.scoreBp)].sort((a, b) => a - b)[(runs.length - 1) / 2];
+  let usedMedian = false;
+  const t = el('table', 'runs');
+  t.innerHTML = '<thead><tr><th>' + esc(label) + '</th><th>passed</th><th>score</th><th>tokens</th><th>wall</th></tr></thead>';
+  const tb = el('tbody');
+  runs.forEach((r, i) => {
+    const tr = el('tr');
+    if (!usedMedian && r.scoreBp === med) { tr.className = 'med'; usedMedian = true; }
+    tr.innerHTML = '<td>run ' + i + '</td><td>' + r.passed + '/' + total + '</td><td>' + r.scoreBp + 'bp</td>'
+      + '<td>' + tok(r.tokens) + '</td><td>' + secs(r.wallMs) + '</td>';
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  const box = el('div', 'tblscroll');
+  box.appendChild(t);
+  return box;
+}
+
+function copyable(node, text) {
+  node.title = text + '  (click to select)';
+  node.addEventListener('click', () => {
+    const r = document.createRange();
+    r.selectNodeContents(node);
+    const s = window.getSelection();
+    s.removeAllRanges(); s.addRange(r);
+    if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+  });
+  return node;
+}
+
+function lineageOf(n) {
+  const chain = [];
+  let cur = n;
+  while (cur) { chain.unshift(cur); cur = cur.parent === 'root' ? null : BY_ID.get(cur.parent); }
+  return chain;
+}
+
+function renderDetail(n) {
+  const d = document.getElementById('detail');
+  d.textContent = '';
+  d.className = 'detail d-' + n.status;
+  d.hidden = false;
+
+  // head
+  const head = el('div', 'dhead');
+  const top = el('div', 'dtoprow');
+  top.appendChild(el('span', 'glyph', isMech(n) ? MECH_GLYPH : GLYPH[n.status]));
+  const ttl = el('div');
+  ttl.appendChild(el('div', 'dtitle', n.label + ' · ' + n.short));
+  ttl.appendChild(el('div', 'dstatus', n.status + ' · ' + n.statusCode));
+  top.appendChild(ttl);
+  const close = el('button', 'btn dclose', 'close');
+  close.type = 'button';
+  close.style.marginLeft = 'auto';
+  close.addEventListener('click', deselect);
+  top.appendChild(close);
+  head.appendChild(top);
+  const chips = el('div', 'rowbot');
+  const m = el('span', 'chip ' + n.mode, 'MODE ' + n.mode.toUpperCase());
+  chips.appendChild(m);
+  chips.appendChild(el('span', 'chip', 'TRUST ' + n.trust));
+  chips.appendChild(el('span', 'chip', 'seq ' + n.seq));
+  if (DATA.stats.tips.includes(n.id)) chips.appendChild(el('span', 'chip tip', 'TIP'));
+  if (n.detail.areaMismatch) {
+    const am = el('span', 'chip mech', 'AREA MISMATCH');
+    am.title = 'The proposer declared "' + n.detail.proposal.primaryArea + '". The diff classifier derived "' + areaOf(n) + '". The derived area wins.';
+    chips.appendChild(am);
+  }
+  head.appendChild(chips);
+  d.appendChild(head);
+
+  // hypothesis
+  const s1 = el('div', 'dsec');
+  s1.appendChild(el('h3', null, 'Hypothesis'));
+  s1.appendChild(el('p', 'quote', n.detail.proposal.hypothesis));
+  const fi = el('p', 'reason');
+  fi.style.marginTop = '8px';
+  fi.innerHTML = '<b>Falsified if:</b> ' + esc(n.detail.proposal.falsifiedIf);
+  s1.appendChild(fi);
+  d.appendChild(s1);
+
+  // verdict
+  const s2 = el('div', 'dsec');
+  s2.appendChild(el('h3', null, 'Verdict — ' + n.statusCode));
+  s2.appendChild(el('p', 'reason', n.statusReason));
+  d.appendChild(s2);
+
+  // numbers
+  const s3 = el('div', 'dsec');
+  s3.appendChild(el('h3', null, 'Measurement'));
+  const kv = el('div', 'kv');
+  const cell = (k, v, cls, title) => {
+    const c = el('div');
+    c.appendChild(el('div', 'k', k));
+    c.appendChild(el('div', 'v' + (cls ? ' ' + cls : ''), v));
+    if (title) c.title = title;
+    kv.appendChild(c);
+  };
+  cell('verified delta', bpTxt(n.verifiedDeltaBp), null, 'The most conservative delta among the counted verifiers. This is what decides the node.');
+  cell('claimed median', n.detail.claimedMedianBp ? n.detail.claimedMedianBp + 'bp' : '—', null, "The author's own median over " + (n.detail.claimedRuns.length || 0) + ' runs. It is a claim, never a vote.');
+  cell('cost', n.costs.medianTokens ? tok(n.costs.medianTokens) + ' tok' : '—', null, 'Median tokens per run. ' + tok(n.costs.tokensPerTask) + ' per task.');
+  cell('time', n.costs.medianWallMs ? secs(n.costs.medianWallMs) : '—', null, 'Median wall time per run. Observational only; the accept rule never reads it.');
+  cell('runs', String(n.detail.claimedRuns.length || 0), 'sm', 'Odd by protocol. The median is used, never a mean.');
+  cell('verifiers', countedOf(n).length + ' of ' + DATA.policy.minVerifications, 'sm', 'Independent non-author keys that counted.');
+  s3.appendChild(kv);
+
+  if (n.detail.claimedRuns.length) {
+    const h = el('div', 'reason');
+    h.style.margin = '10px 0 5px';
+    h.innerHTML = '<b>Author claim</b> — these runs never count toward acceptance.';
+    s3.appendChild(h);
+    s3.appendChild(runTable(n.detail.claimedRuns, DATA.bench.total, 'author'));
+  }
+  d.appendChild(s3);
+
+  // mechanical
+  if (isMech(n)) {
+    const s = el('div', 'dsec');
+    s.appendChild(el('h3', null, 'Mechanical failure — this patch never ran'));
+    const box = el('div', 'mechbox');
+    box.appendChild(el('div', 'mcls', n.detail.mechanical.cls + '  ·  exit ' + n.detail.mechanical.exitCode));
+    if (n.detail.mechanical.command) box.appendChild(el('div', 'mcmd', n.detail.mechanical.command));
+    s.appendChild(box);
+    if (n.detail.mechanical.evidence) {
+      const p = el('pre', 'evi', n.detail.mechanical.evidence);
+      p.style.marginTop = '8px';
+      s.appendChild(p);
+    }
+    const note = el('p', 'reason');
+    note.style.marginTop = '8px';
+    note.textContent = 'A failed experiment is a record. The node keeps its hypothesis, its patch and the verbatim tool output so nobody repeats it.';
+    s.appendChild(note);
+    d.appendChild(s);
+  }
+
+  // verifications
+  const s4 = el('div', 'dsec');
+  const h4 = el('h3');
+  h4.innerHTML = 'Verifier signatures <span class="sub">— ' + countedOf(n).length + ' counted, '
+    + (n.verifications.length - countedOf(n).length) + ' ignored</span>';
+  s4.appendChild(h4);
+  if (!n.verifications.length) {
+    s4.appendChild(el('p', 'reason', 'No key has signed a report for this node. The author’s own runs can never fill that gap.'));
+  }
+  for (const v of n.verifications) {
+    const c = el('div', 'vcard' + (v.counted ? '' : ' ignored'));
+    const vh = el('div', 'vhead');
+    vh.appendChild(el('span', 'vlabel', v.runnerLabel));
+    vh.appendChild(el('span', 'vstamp ' + (v.counted ? 'yes' : 'no'), v.counted ? 'COUNTED' : 'IGNORED'));
+    vh.appendChild(el('span', 'chip ' + v.mode, v.mode.toUpperCase()));
+    if (!v.clean) vh.appendChild(el('span', 'chip mech', 'UNCLEAN BATCH'));
+    vh.appendChild(el('span', 'vdelta', bpTxt(v.deltaMedianBp)));
+    c.appendChild(vh);
+    if (!v.counted && v.ignoredWhy) c.appendChild(el('div', 'vwhy', '✕ ' + v.ignoredWhy));
+
+    const sub = el('div', 'chip');
+    sub.style.cssText = 'display:block;border:none;padding:4px 0 0;color:var(--ink-2);font-size:11.5px;white-space:normal';
+    sub.textContent = v.runs + ' paired runs · parent ' + v.parent.medianBp + 'bp → candidate '
+      + v.candidate.medianBp + 'bp · spread ' + v.spreadBp + 'bp (limit ' + DATA.policy.maxRunSpreadBp + 'bp) · '
+      + v.env.arch + ' ' + v.env.platform + ' · node ' + v.env.nodeVersion + ' · model ' + v.env.model + ' · ' + when(v.startedAt);
+    c.appendChild(sub);
+
+    const pair = el('div');
+    pair.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:7px';
+    pair.appendChild(runTable(v.parent.runs, v.parent.total, 'parent'));
+    pair.appendChild(runTable(v.candidate.runs, v.candidate.total, 'candidate'));
+    c.appendChild(pair);
+
+    const sig = el('div', 'sigline');
+    sig.innerHTML = '<b>key</b> ' + esc(v.runner.slice(0, 16)) + '… &nbsp; <b>sig</b> ' + esc(v.sig.slice(0, 16)) + '… &nbsp; <b>report</b> ' + esc(v.reportId.slice(0, 16)) + '…';
+    copyable(sig, 'key ' + v.runner + '\nsig ' + v.sig + '\nreport ' + v.reportId + '\nseedBase ' + v.seedBase);
+    c.appendChild(sig);
+    s4.appendChild(c);
+  }
+  d.appendChild(s4);
+
+  // diff
+  const s5 = el('div', 'dsec');
+  const files = n.detail.proposal.files.map((f) => f.path).join(', ') || 'no file was written';
+  const h5 = el('h3');
+  h5.innerHTML = 'Diff <span class="sub">— ' + esc(files) + '</span>';
+  s5.appendChild(h5);
+  if (n.diff) {
+    const pre = el('pre', 'diff');
+    for (const line of n.diff.split('\n')) {
+      const cls = line.startsWith('+++') || line.startsWith('---') ? 'meta'
+        : line.startsWith('@@') ? 'hunk'
+        : line.startsWith('+') ? 'add'
+        : line.startsWith('-') ? 'del' : '';
+      pre.appendChild(el('span', 'dl ' + cls, line || ' '));
+    }
+    s5.appendChild(pre);
+  } else {
+    s5.appendChild(el('p', 'reason', 'No diff. The proposal never produced a file.'));
+  }
+  const dn = el('p', 'reason');
+  dn.style.marginTop = '7px';
+  dn.textContent = 'Display only. The diff is never hashed. The node id commits to the harness snapshot and to the detail bundle instead.';
+  s5.appendChild(dn);
+  d.appendChild(s5);
+
+  // reasoning + provenance
+  const s6 = el('div', 'dsec');
+  s6.appendChild(el('h3', null, 'Reasoning'));
+  s6.appendChild(el('p', 'reason', n.detail.proposal.reasoning));
+  if (n.detail.proposal.whyNotUntested) {
+    const w = el('p', 'reason');
+    w.style.marginTop = '7px';
+    w.innerHTML = '<b>Why not an untested area:</b> ' + esc(n.detail.proposal.whyNotUntested);
+    s6.appendChild(w);
+  }
+  for (const c of n.detail.proposal.contradicts) {
+    const t = BY_ID.get(c.nodeId);
+    const p = el('p', 'reason');
+    p.style.marginTop = '7px';
+    p.innerHTML = '<b>Contradicts ' + esc(t ? t.label : c.nodeId.slice(0, 8)) + ':</b> ' + esc(c.why);
+    s6.appendChild(p);
+  }
+  const kv2 = el('div', 'kv');
+  kv2.style.marginTop = '10px';
+  const cell2 = (k, v, title) => {
+    const c = el('div');
+    c.appendChild(el('div', 'k', k));
+    c.appendChild(el('div', 'v sm', v));
+    if (title) c.title = title;
+    kv2.appendChild(c);
+  };
+  cell2('motif', n.detail.proposal.motif);
+  cell2('area derived', areaOf(n), 'Derived from the diff by the classifier. This is the one the digest uses.');
+  cell2('area declared', n.detail.proposal.primaryArea, 'What the proposer said. A model cannot mislabel its way around a saturated area.');
+  cell2('metric', n.detail.proposal.metric);
+  cell2('predicted', (n.detail.proposal.predictedDelta > 0 ? '+' : '') + n.detail.proposal.predictedDelta + (n.detail.proposal.metric === 'score' ? 'bp' : ' tok'));
+  cell2('source', n.detail.provenance.source);
+  cell2('model', n.detail.provenance.model);
+  cell2('author', n.authorLabel, 'Self-claimed label. The identity is the key ' + n.author + '.');
+  s6.appendChild(kv2);
+  d.appendChild(s6);
+
+  // identity
+  const s7 = el('div', 'dsec');
+  s7.appendChild(el('h3', null, 'Lineage and ids'));
+  const lin = el('div', 'lineage');
+  const chain = lineageOf(n);
+  lin.appendChild(el('span', 'sep', 'root →'));
+  chain.forEach((c, i) => {
+    const b = el('button', null, c.label);
+    b.type = 'button';
+    b.title = c.hypothesis;
+    b.addEventListener('click', () => select(c.id, true));
+    if (c.id === n.id) b.style.fontWeight = '700';
+    lin.appendChild(b);
+    if (i < chain.length - 1) lin.appendChild(el('span', 'sep', '→'));
+  });
+  s7.appendChild(lin);
+  const ids = [
+    ['node', n.id], ['parent', n.parent], ['harness', n.harness],
+    ['parent harness', n.detail.parentHarness], ['author key', n.author], ['bench', n.bench],
+    ['prompt hash', n.detail.provenance.promptHash], ['consensus nanos', n.consensusNanos],
+  ];
+  const idbox = el('div');
+  idbox.style.marginTop = '8px';
+  for (const [k, v] of ids) {
+    const line = el('div', 'idline');
+    line.innerHTML = '<b style="color:var(--ink-3);font-weight:600">' + esc(k) + '</b> ' + esc(v);
+    copyable(line, v);
+    idbox.appendChild(line);
+  }
+  s7.appendChild(idbox);
+  d.appendChild(s7);
+
+  d.scrollTop = 0;
+}
+
+// --------------------------------------------------- detail: the empty state
+function renderEmptyPanel() {
+  const d = document.getElementById('detail');
+  d.textContent = '';
+  d.className = 'detail empty';
+  d.hidden = false;
+
+  const head = el('div', 'dhead');
+  head.appendChild(el('div', 'dtitle', 'No node selected'));
+  head.appendChild(el('div', 'dstatus', 'pick any node · ↑ ↓ to walk the tree'));
+  d.appendChild(head);
+
+  const s0 = el('div', 'dsec');
+  s0.appendChild(el('h3', null, 'How to read a node'));
+  const p = el('p', 'reason');
+  p.innerHTML = 'A node is accepted only when <b>' + DATA.policy.minVerifications + ' independent keys</b> that are not the author each '
+    + 're-run the parent and the candidate <b>' + DATA.policy.minRuns + ' times</b>, take the median of the paired deltas, and each clear '
+    + '<b>+' + DATA.policy.minDeltaBp + 'bp</b>. Anything inside that band is a tie, and a tie is recorded as a rejection so nobody retries it.';
+  s0.appendChild(p);
+  d.appendChild(s0);
+
+  const losses = DATA.nodes
+    .filter((n) => n.verifiedDeltaBp !== null && n.verifiedDeltaBp < 0)
+    .sort((a, b) => a.verifiedDeltaBp - b.verifiedDeltaBp)
+    .slice(0, 6);
+  if (losses.length) {
+    const s1 = el('div', 'dsec');
+    const h = el('h3');
+    h.innerHTML = 'Notable dead ends <span class="sub">— measured regressions, worst first</span>';
+    s1.appendChild(h);
+    const list = el('div', 'deadlist');
+    for (const n of losses) {
+      const b = el('button', 'dead');
+      b.type = 'button';
+      b.innerHTML = '<span class="dhl"><span class="id">' + esc(n.label) + '</span>'
+        + '<span>' + esc(areaOf(n)) + ' / ' + esc(n.detail.proposal.motif) + '</span>'
+        + '<span class="dv">' + bpTxt(n.verifiedDeltaBp) + '</span></span>'
+        + '<span class="dq">“' + esc(n.hypothesis) + '”</span>';
+      b.addEventListener('click', () => select(n.id, true));
+      list.appendChild(b);
+    }
+    s1.appendChild(list);
+    d.appendChild(s1);
+  }
+
+  const mechs = DATA.nodes.filter(isMech);
+  if (mechs.length) {
+    const s2 = el('div', 'dsec');
+    const h = el('h3');
+    h.innerHTML = 'Patches that never ran <span class="sub">— kept as records</span>';
+    s2.appendChild(h);
+    const list = el('div', 'deadlist');
+    for (const n of mechs) {
+      const b = el('button', 'dead');
+      b.type = 'button';
+      b.style.borderLeftStyle = 'dotted';
+      b.innerHTML = '<span class="dhl"><span class="id">' + esc(n.label) + '</span>'
+        + '<span>' + esc(n.detail.mechanical.cls) + '</span></span>'
+        + '<span class="dq">' + esc((n.detail.mechanical.evidence || '').split('\n')[0].slice(0, 120)) + '</span>';
+      b.addEventListener('click', () => select(n.id, true));
+      list.appendChild(b);
+    }
+    s2.appendChild(list);
+    d.appendChild(s2);
+  }
+}
+
+// --------------------------------------------------------------- selection
+function select(id, scrollIntoView) {
+  selected = id;
+  const n = BY_ID.get(id);
+  if (!n) return;
+  renderTree();
+  renderDetail(n);
+  if (window.matchMedia('(max-width: 980px)').matches) document.body.classList.add('sheet-open');
+  history.replaceState(null, '', '#' + n.short);
+  if (scrollIntoView) {
+    const row = document.querySelector('.row[data-id="' + id + '"]');
+    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+}
+
+function deselect() {
+  selected = null;
+  document.body.classList.remove('sheet-open');
+  history.replaceState(null, '', location.pathname + location.search);
+  renderTree();
+  renderEmptyPanel();
+}
+
+function move(step) {
+  const list = ORDER.filter(matches);
+  if (!list.length) return;
+  let i = list.findIndex((n) => n.id === selected);
+  i = i < 0 ? (step > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, i + step));
+  select(list[i].id, true);
+}
+
+document.addEventListener('keydown', (e) => {
+  const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if (e.key === '/' && !typing) { e.preventDefault(); document.getElementById('q').focus(); return; }
+  if (e.key === 'Escape') { if (typing) document.activeElement.blur(); else deselect(); return; }
+  if (typing) return;
+  if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); move(1); }
+  if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); move(-1); }
+});
+
+// ---------------------------------------------------------------- ledgers
+function renderLedgers() {
+  const t = document.getElementById('areatbl');
+  t.innerHTML = '<thead><tr><th>area</th><th>tried</th><th>acc</th><th>rej</th><th>pend</th><th>best</th><th>verdict</th></tr></thead>';
+  const tb = el('tbody');
+  for (const a of AREAS) {
+    const ns = DATA.nodes.filter((n) => areaOf(n) === a);
+    const acc = ns.filter((n) => n.status === 'accepted').length;
+    const rej = ns.filter((n) => n.status === 'rejected').length;
+    const pend = ns.filter((n) => n.status === 'pending' || n.status === 'contested').length;
+    const deltas = ns.map((n) => n.verifiedDeltaBp).filter((v) => v !== null);
+    const best = deltas.length ? Math.max(...deltas) : null;
+    let v = 'NEVER TRIED', cls = 'never';
+    if (ns.length && acc > 0) { v = 'PRODUCTIVE'; cls = 'prod'; }
+    else if (ns.length >= 3 && acc === 0) { v = 'SATURATED'; cls = 'sat'; }
+    else if (ns.length) { v = 'OPEN'; cls = ''; }
+    const tr = el('tr');
+    tr.innerHTML = '<td>' + a + '</td><td>' + ns.length + '</td><td>' + acc + '</td><td>' + rej + '</td>'
+      + '<td>' + pend + '</td><td>' + (best === null ? '—' : bpTxt(best)) + '</td>'
+      + '<td><span class="verdictlab ' + cls + '">' + v + '</span></td>';
+    if (ns.length) {
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', () => {
+        document.getElementById('areaSel').value = a;
+        filters.area = a;
+        renderTree();
+        document.getElementById('treebox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    tb.appendChild(tr);
+  }
+  t.appendChild(tb);
+
+  const r = document.getElementById('runnertbl');
+  r.innerHTML = '<thead><tr><th>label</th><th>key</th><th>reports</th><th>machine</th></tr></thead>';
+  const rb = el('tbody');
+  for (const run of DATA.runners) {
+    const authored = DATA.nodes.filter((n) => n.author === run.pub).length;
+    const tr = el('tr');
+    tr.innerHTML = '<td>' + esc(run.label || '(no label)') + '</td><td class="mono">' + esc(run.pub.slice(0, 12)) + '…</td>'
+      + '<td>' + run.reports + '</td><td style="text-align:left;color:var(--ink-2)">' + esc(run.note || '—') + '</td>';
+    tr.title = run.label + ' authored ' + authored + ' node(s) and signed ' + run.reports + ' report(s).\nkey ' + run.pub;
+    rb.appendChild(tr);
+  }
+  r.appendChild(rb);
+}
+
+// -------------------------------------------------------------------- boot
+load().then((d) => {
+  DATA = d;
+  index();
+  renderHeader();
+  renderSpine();
+  buildControls();
+  renderTree();
+  renderLedgers();
+  const want = location.hash.slice(1);
+  const hit = DATA.nodes.find((n) => n.short === want || n.id === want || n.label === want);
+  if (hit) select(hit.id, true); else renderEmptyPanel();
+}).catch((err) => {
+  document.getElementById('treebox').innerHTML =
+    '<div class="emptynote">Could not read the tree.<br><code>' + esc(String(err)) + '</code></div>';
+});
+})();
+</script>
+</body>
+</html>

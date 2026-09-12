@@ -20,6 +20,7 @@ import {
 } from "@/lib/selfie-check/store";
 import {
   SELFIE_IDENTIFIER,
+  isSelfieIdentifier,
   type IDKitResultV3,
   type ResponseItemV3,
 } from "@/lib/selfie-check/types";
@@ -74,8 +75,8 @@ export async function POST(request: Request) {
         `Expected a World ID 3.0 result from Selfie Check, got ${String(rawResult.protocol_version)}.`,
       );
     }
-    const found = rawResult.responses?.find(
-      (r) => r.identifier === SELFIE_IDENTIFIER,
+    const found = rawResult.responses?.find((r) =>
+      isSelfieIdentifier(r.identifier),
     );
     if (!found) {
       return fail(
@@ -157,16 +158,18 @@ export async function POST(request: Request) {
       config,
       item,
       action: config.action,
+      // v4 requires the rp_context nonce the proof was minted against.
+      nonce: rawResult.nonce,
       maxAgeSeconds: maxAge,
     });
-    if (!verifyAttempt.response.success) {
-      const code = verifyAttempt.response.code;
+    if (!verifyAttempt.ok) {
       return fail(
         record,
         id,
         isNew,
-        code,
-        verifyAttempt.response.detail ?? "Verify endpoint rejected the proof.",
+        verifyAttempt.code ?? "unexpected_response",
+        verifyAttempt.guidance ??
+          "Verify endpoint rejected the proof.",
         scenarioId ?? undefined,
         verifyAttempt,
       );
@@ -239,20 +242,33 @@ export async function POST(request: Request) {
       environment: rawResult.environment,
     },
     verify: verifyAttempt
-      ? { status: verifyAttempt.status, request: verifyAttempt.request, response: verifyAttempt.response }
+      ? {
+          status: verifyAttempt.status,
+          target: verifyAttempt.target,
+          url: verifyAttempt.url,
+          request: verifyAttempt.request,
+          response: verifyAttempt.response,
+        }
       : {
           status: null,
+          target: "v4" as const,
+          url: "https://developer.world.org/api/v4/verify/{rp_id}",
           request: {
-            nullifier_hash: nullifier,
-            merkle_root: item.merkle_root,
-            verification_level: "selfie",
+            protocol_version: "3.0",
+            nonce: rawResult.nonce,
             action: config.action,
-            signal_hash: item.signal_hash,
-            ...(maxAge != null ? { max_age: maxAge } : {}),
-            proof: `${item.proof.slice(0, 18)}… (truncated)`,
+            responses: [
+              {
+                identifier: item.identifier,
+                merkle_root: item.merkle_root,
+                nullifier: item.nullifier,
+                signal_hash: item.signal_hash,
+                proof: `${item.proof.slice(0, 18)}… (truncated)`,
+              },
+            ],
           },
           response: null,
-          note: "Mock mode — this body is what would be POSTed to /api/v2/verify/{app_id}.",
+          note: "Mock mode — this is the body that would be POSTed to /api/v4/verify/{rp_id}.",
         },
     account: {
       continuity: snapshot.continuity,

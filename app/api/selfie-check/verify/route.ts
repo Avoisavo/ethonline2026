@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { hashSignal } from "@worldcoin/idkit/hashing";
 
-import { getConfig } from "@/lib/selfie-check/config";
-import { findScenario, runMockScenario } from "@/lib/selfie-check/mock";
+import {
+  ConfigError,
+  environmentAsymmetry,
+  requireConfig,
+} from "@/lib/selfie-check/config";
 import {
   credentialExpiresAt,
   evaluate,
@@ -14,29 +18,41 @@ import {
   getAccount,
   pushEvent,
   saveAccount,
-  sha256Hex,
   shortNullifier,
   toSnapshot,
 } from "@/lib/selfie-check/store";
 import {
+  SCHEMA_IDS,
   SELFIE_IDENTIFIER,
   isSelfieIdentifier,
-  type IDKitResultV3,
-  type ResponseItemV3,
+  normalizeV4,
+  type AnyIDKitResult,
+  type NormalizedCredential,
+  type ResponseItemV4,
 } from "@/lib/selfie-check/types";
 import { clampMaxAge, verifySelfieProof } from "@/lib/selfie-check/verify";
 
 type Body = {
   /** Which gated action the user is trying to reach. */
   intent?: string;
-  /** Mock mode: which sandbox scenario to run. */
-  scenarioId?: string;
-  /** Live mode: the raw IDKit result forwarded from the widget. */
-  result?: IDKitResultV3;
+  /** The raw IDKit result forwarded from the widget. */
+  result?: AnyIDKitResult;
 };
 
 export async function POST(request: Request) {
-  const config = getConfig();
+  let config;
+  try {
+    config = requireConfig();
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      return NextResponse.json(
+        { ok: false, errorCode: "not_configured", problems: error.problems },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
+
   const { id, isNew } = await resolveAccountId();
   const record = getAccount(id);
   const body = (await request.json().catch(() => ({}))) as Body;
@@ -44,102 +60,114 @@ export async function POST(request: Request) {
   const intent = body.intent ? findAction(body.intent) : undefined;
   const maxAge = clampMaxAge(intent?.maxAgeSeconds ?? null);
 
-  // The signal binds the proof to this account, so a proof minted for one
-  // account can't be replayed against another. World App hashes the signal with
-  // `hash_to_field`, so re-derive it the same way rather than with a plain
-  // digest — `sha256(id)` would never match a real proof.
-  const { hashSignal } = await import("@worldcoin/idkit/hashing");
-  const signalHash = hashSignal(id);
-
-  let item: ResponseItemV3;
-  let mintedAt = Date.now();
-  let credentialIssuedAt = record.credentialIssuedAt ?? Date.now();
-  let source: "mock" | "live";
-  let scenarioId: string | null = null;
-  let personaLabel: string | null = null;
-  let userState: string | null = null;
-  let rawResult: IDKitResultV3;
-
-  if (body.result) {
-    // ---- Live path: World App produced a real World ID 3.0 proof. ----
-    source = "live";
-    rawResult = body.result;
-    // selfieCheckLegacy() only ever returns World ID 3.0. A 4.0 result would
-    // carry `proof` as string[] and not survive the legacy verify endpoint.
-    if (rawResult.protocol_version !== "3.0") {
-      return fail(
-        record,
-        id,
-        isNew,
-        "unexpected_response",
-        `Expected a World ID 3.0 result from Selfie Check, got ${String(rawResult.protocol_version)}.`,
-      );
-    }
-    const found = rawResult.responses?.find((r) =>
-      isSelfieIdentifier(r.identifier),
+  if (!body.result) {
+    return NextResponse.json(
+      {
+        ok: false,
+        errorCode: "missing_result",
+        detail:
+          "No IDKit result in the request. A proof must come from World App — there is no local proof engine.",
+      },
+      { status: 400 },
     );
-    if (!found) {
-      return fail(
-        record,
-        id,
-        isNew,
-        "unexpected_response",
-        `Result carried no "${SELFIE_IDENTIFIER}" credential response.`,
-      );
-    }
-    // Reject a proof that was minted for a different account.
-    if (found.signal_hash && found.signal_hash !== signalHash) {
-      return fail(
-        record,
-        id,
-        isNew,
-        "invalid_signal",
-        "Proof signal_hash does not bind to this account — refusing a cross-account replay.",
-      );
-    }
-    item = found;
-  } else {
-    // ---- Mock path: local proof engine stands in for World App. ----
-    source = "mock";
-    const scenario = findScenario(body.scenarioId ?? "hot_same_human");
-    if (!scenario) {
-      return NextResponse.json(
-        { ok: false, error: `Unknown scenario "${body.scenarioId}".` },
-        { status: 400 },
-      );
-    }
-    scenarioId = scenario.id;
-
-    const outcome = runMockScenario({
-      scenario,
-      appId: config.mode === "live" ? config.appId : "app_mock",
-      action: config.action,
-      nonce: `0x${sha256Hex(`${id}:${Date.now()}`)}`,
-      signalHash,
-    });
-
-    if (!outcome.ok) {
-      return fail(
-        record,
-        id,
-        isNew,
-        outcome.errorCode,
-        scenario.blurb,
-        scenario.id,
-      );
-    }
-
-    item = outcome.result.responses[0];
-    rawResult = outcome.result;
-    mintedAt = outcome.meta.mintedAt;
-    credentialIssuedAt = outcome.meta.credentialIssuedAt;
-    personaLabel = outcome.meta.personaLabel;
-    userState = outcome.meta.userState;
   }
 
-  // ---- Replay guard. In production this is a UNIQUE (nullifier, action)
-  // ---- constraint; the nonce check is what stops a captured rp_context from
-  // ---- being reused.
+  const rawResult = body.result;
+
+  // ---- Gate 1: protocol version.
+  //
+  // The rp_context signature covers only
+  // version || nonce || created_at || expires_at || hash_to_field(action).
+  // `allow_legacy_proofs`, the preset and the constraint tree are UNSIGNED and
+  // chosen by the client, so a caller holding a legitimately minted context can
+  // re-run the request as `selfieCheckLegacy()` and return a genuine 3.0 proof
+  // for the same action.
+  //
+  // That matters because the 3.0 and 4.0 nullifiers for one human are different
+  // values, unlinkable by design. Accepting both for a single action would let
+  // one human hold two anchors — enroll on 4.0, then present 3.0 and read as a
+  // different human. Every decision downstream compares nullifiers, so
+  // accepting both versions breaks the comparison it depends on.
+  if (rawResult.protocol_version !== "4.0") {
+    return fail(
+      record,
+      id,
+      isNew,
+      "wrong_protocol_version",
+      `Expected a World ID 4.0 proof, got ${String(
+        (rawResult as { protocol_version?: unknown }).protocol_version,
+      )}. A 3.0 proof for this action is refused: its nullifier is a different, unlinkable value.`,
+    );
+  }
+
+  // ---- Gate 2: the credential itself.
+  //
+  // Also unsigned, so it is asserted here rather than assumed from what the
+  // widget was configured to request.
+  const found = rawResult.responses?.find((r) =>
+    isSelfieIdentifier(r.identifier),
+  );
+  if (!found) {
+    const seen = (rawResult.responses ?? [])
+      .map((r) => r.identifier)
+      .join(", ");
+    return fail(
+      record,
+      id,
+      isNew,
+      "wrong_credential",
+      `Result carried no "${SELFIE_IDENTIFIER}" credential${seen ? ` (got: ${seen})` : ""}.`,
+    );
+  }
+
+  const item = found as ResponseItemV4;
+
+  // ---- Gate 3: issuer_schema_id.
+  //
+  // A 4.0 nullifier is deterministic over (human, rp_id, action) and is
+  // credential-independent, so the nullifier alone cannot tell you which
+  // credential produced it. The schema id is the only field that can: 11 for
+  // Selfie Check, 1 for proof_of_human. Without this check a proof_of_human or
+  // passport proof would satisfy a gate that is supposed to mean "passed a
+  // Selfie Check".
+  if (item.issuer_schema_id !== SCHEMA_IDS.selfie) {
+    return fail(
+      record,
+      id,
+      isNew,
+      "wrong_schema_id",
+      `Expected issuer_schema_id ${SCHEMA_IDS.selfie} (selfie), got ${String(item.issuer_schema_id)}.`,
+    );
+  }
+
+  // ---- Gate 4: the signal binds the proof to this account.
+  //
+  // World App hashes the signal with hash_to_field, so re-derive it the same
+  // way. sha256(id) would never match.
+  const signalHash = hashSignal(id);
+  if (!item.signal_hash) {
+    return fail(
+      record,
+      id,
+      isNew,
+      "missing_signal",
+      "Proof carried no signal_hash, so it cannot be bound to this account.",
+    );
+  }
+  if (item.signal_hash !== signalHash) {
+    return fail(
+      record,
+      id,
+      isNew,
+      "invalid_signal",
+      "Proof signal_hash does not bind to this account — refusing a cross-account replay.",
+    );
+  }
+
+  const cred: NormalizedCredential = normalizeV4(item);
+
+  // ---- Gate 5: nonce replay. In production this is a UNIQUE constraint; the
+  // nonce check is what stops a captured rp_context from being reused.
   if (rawResult.nonce && record.usedNonces.includes(rawResult.nonce)) {
     return fail(
       record,
@@ -147,36 +175,32 @@ export async function POST(request: Request) {
       isNew,
       "duplicate_nonce",
       "This rp_context nonce was already spent.",
-      scenarioId ?? undefined,
     );
   }
 
-  // ---- Server-side verification against the Developer Portal (live only).
-  let verifyAttempt: Awaited<ReturnType<typeof verifySelfieProof>> | null = null;
-  if (config.mode === "live" && source === "live") {
-    verifyAttempt = await verifySelfieProof({
-      config,
-      item,
-      action: config.action,
-      // v4 requires the rp_context nonce the proof was minted against.
-      nonce: rawResult.nonce,
-      maxAgeSeconds: maxAge,
-    });
-    if (!verifyAttempt.ok) {
-      return fail(
-        record,
-        id,
-        isNew,
-        verifyAttempt.code ?? "unexpected_response",
-        verifyAttempt.guidance ??
-          "Verify endpoint rejected the proof.",
-        scenarioId ?? undefined,
-        verifyAttempt,
-      );
-    }
+  // ---- Gate 6: the Developer Portal verifies the proof. Nothing above this
+  // line proves the proof is cryptographically valid.
+  const verifyAttempt = await verifySelfieProof({
+    config,
+    item,
+    protocolVersion: "4.0",
+    action: config.action,
+    nonce: rawResult.nonce,
+    maxAgeSeconds: maxAge,
+  });
+  if (!verifyAttempt.ok) {
+    return fail(
+      record,
+      id,
+      isNew,
+      verifyAttempt.code ?? "verification_failed",
+      verifyAttempt.guidance ?? "Verify endpoint rejected the proof.",
+      verifyAttempt,
+    );
   }
 
   // ---- Proof accepted. Update the anchor / continuity state.
+  const verifiedAt = portalTimestamp(verifyAttempt) ?? Date.now();
   const nullifier = item.nullifier;
   const previousAnchor = record.anchorNullifier;
   let continuityEvent:
@@ -186,7 +210,7 @@ export async function POST(request: Request) {
 
   if (previousAnchor == null) {
     record.anchorNullifier = nullifier;
-    record.anchoredAt = mintedAt;
+    record.anchoredAt = verifiedAt;
     continuityEvent = "anchor_created";
   } else if (nullifier === previousAnchor) {
     continuityEvent = "continuity_confirmed";
@@ -196,8 +220,11 @@ export async function POST(request: Request) {
   }
 
   record.lastNullifier = nullifier;
-  record.lastVerifiedAt = mintedAt;
-  record.credentialIssuedAt = credentialIssuedAt;
+  record.lastVerifiedAt = verifiedAt;
+  // The 90-day figure is an INACTIVITY window, not an absolute expiry: "After
+  // 90 days without use, the user completes the camera flow again." So it
+  // resets on every successful use rather than counting from first issuance.
+  record.credentialIssuedAt = verifiedAt;
   if (!record.seenNullifiers.includes(nullifier)) {
     record.seenNullifiers.push(nullifier);
   }
@@ -205,7 +232,7 @@ export async function POST(request: Request) {
 
   const summaries: Record<typeof continuityEvent, string> = {
     anchor_created: `Human anchor established — ${shortNullifier(nullifier)}`,
-    continuity_confirmed: `Continuity confirmed — same nullifier as anchor`,
+    continuity_confirmed: "Continuity confirmed — same nullifier as anchor",
     continuity_broken: `Continuity BREAK — ${shortNullifier(nullifier)} ≠ anchor ${shortNullifier(previousAnchor)}`,
   };
 
@@ -213,13 +240,9 @@ export async function POST(request: Request) {
     at: Date.now(),
     kind: continuityEvent,
     summary: summaries[continuityEvent],
-    detail: [
-      personaLabel && `face: ${personaLabel}`,
-      userState && `state: ${userState}`,
-      scenarioId && `scenario: ${scenarioId}`,
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    detail: `live proof · HTTP ${verifyAttempt.status} · ${verifyAttempt.target} · schema ${item.issuer_schema_id}`,
+    source: "live",
+    verifyStatus: verifyAttempt.status,
   });
   saveAccount(record);
 
@@ -228,48 +251,28 @@ export async function POST(request: Request) {
 
   const res = NextResponse.json({
     ok: true,
-    source,
-    scenarioId,
+    source: "live" as const,
     continuityEvent,
     credential: {
-      identifier: item.identifier,
+      identifier: cred.identifier,
       nullifier,
       nullifierShort: shortNullifier(nullifier),
-      merkle_root: item.merkle_root,
-      signal_hash: item.signal_hash ?? null,
-      proofPreview: `${item.proof.slice(0, 34)}… (${item.proof.length - 2} hex chars)`,
+      merkle_root: cred.merkleRoot,
+      signal_hash: cred.signalHash,
+      issuer_schema_id: cred.issuerSchemaId,
+      expires_at_min: cred.expiresAtMin,
+      proofPreview: cred.proofPreview,
       protocol_version: rawResult.protocol_version,
       environment: rawResult.environment,
     },
-    verify: verifyAttempt
-      ? {
-          status: verifyAttempt.status,
-          target: verifyAttempt.target,
-          url: verifyAttempt.url,
-          request: verifyAttempt.request,
-          response: verifyAttempt.response,
-        }
-      : {
-          status: null,
-          target: "v4" as const,
-          url: "https://developer.world.org/api/v4/verify/{rp_id}",
-          request: {
-            protocol_version: "3.0",
-            nonce: rawResult.nonce,
-            action: config.action,
-            responses: [
-              {
-                identifier: item.identifier,
-                merkle_root: item.merkle_root,
-                nullifier: item.nullifier,
-                signal_hash: item.signal_hash,
-                proof: `${item.proof.slice(0, 18)}… (truncated)`,
-              },
-            ],
-          },
-          response: null,
-          note: "Mock mode — this is the body that would be POSTed to /api/v4/verify/{rp_id}.",
-        },
+    verify: {
+      status: verifyAttempt.status,
+      target: verifyAttempt.target,
+      url: verifyAttempt.url,
+      request: verifyAttempt.request,
+      response: verifyAttempt.response,
+      environmentNote: environmentAsymmetry(config),
+    },
     account: {
       continuity: snapshot.continuity,
       continuityBreaks: record.continuityBreaks,
@@ -284,6 +287,20 @@ export async function POST(request: Request) {
   return res;
 }
 
+/**
+ * Prefer the portal's own `created_at` over local time. It is the only
+ * timestamp neither this server nor the client can influence, and proof
+ * freshness decisions are made against it.
+ */
+function portalTimestamp(attempt: {
+  response: unknown;
+}): number | null {
+  const created = (attempt.response as { created_at?: unknown })?.created_at;
+  if (typeof created !== "string") return null;
+  const ms = Date.parse(created);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 /** Record a failed verification and return it in the shape the UI expects. */
 function fail(
   record: AccountRecord,
@@ -291,7 +308,6 @@ function fail(
   isNew: boolean,
   code: string,
   detail: string,
-  scenarioId?: string,
   verifyAttempt?: Awaited<ReturnType<typeof verifySelfieProof>>,
 ) {
   pushEvent(record, {
@@ -299,6 +315,8 @@ function fail(
     kind: "verification_failed",
     summary: `Verification failed — ${code}`,
     detail,
+    source: "live",
+    verifyStatus: verifyAttempt?.status ?? null,
   });
   saveAccount(record);
 
@@ -306,10 +324,11 @@ function fail(
     ok: false,
     errorCode: code,
     detail,
-    scenarioId: scenarioId ?? null,
     verify: verifyAttempt
       ? {
           status: verifyAttempt.status,
+          target: verifyAttempt.target,
+          url: verifyAttempt.url,
           request: verifyAttempt.request,
           response: verifyAttempt.response,
         }

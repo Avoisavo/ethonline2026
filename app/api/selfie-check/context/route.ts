@@ -1,66 +1,75 @@
-import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import { signRequest } from "@worldcoin/idkit/signing";
 
-import { getConfig } from "@/lib/selfie-check/config";
+import {
+  ConfigError,
+  environmentAsymmetry,
+  requireConfig,
+} from "@/lib/selfie-check/config";
 import { accountCookie, resolveAccountId } from "@/lib/selfie-check/session";
 import type { RpContext } from "@/lib/selfie-check/types";
+
+/** rp_context lifetime, in seconds. Matches signRequest's own default. */
+const RP_CONTEXT_TTL_SECONDS = 300;
 
 /**
  * Mint an rp_context for a proof request.
  *
- * The signature must be produced server-side — the signing key never reaches
- * the browser. In live mode this delegates to `signRequest` from
- * `@worldcoin/idkit/signing`, which handles the parts that are easy to get
- * wrong by hand: the 32-byte nonce run through `hash_to_field`, the
+ * The signature is produced server-side — the signing key never reaches the
+ * browser. `signRequest` handles the parts that are easy to get wrong by hand:
+ * the 32-byte nonce run through `hash_to_field`, the
  * `version || nonce || created_at || expires_at || action` message layout, the
  * EIP-191 prefix, and Keccak-256 (NOT SHA3-256 — different padding, and the
  * failure surfaces only as `invalid_rp_signature`).
+ *
+ * Note what the signature does NOT cover: the credential requested, the
+ * constraint tree, and `allow_legacy_proofs` are all unsigned and chosen by the
+ * client. A context minted here can therefore be used to return a proof from a
+ * different credential or protocol version, so the verify route re-asserts both
+ * rather than trusting that this context was used as intended.
  */
 export async function POST() {
-  const config = getConfig();
-  const { id, isNew } = await resolveAccountId();
-
-  let context: RpContext;
-  let note: string;
-
-  if (config.mode === "live") {
-    const { signRequest } = await import("@worldcoin/idkit/signing");
-    const signed = signRequest({
-      signingKeyHex: config.signingKey,
-      action: config.action,
-      ttl: 300,
-    });
-    context = {
-      rp_id: config.rpId,
-      nonce: signed.nonce,
-      created_at: signed.createdAt,
-      expires_at: signed.expiresAt,
-      signature: signed.sig,
-    };
-    note = "Signed with WORLD_RP_SIGNING_KEY via @worldcoin/idkit/signing.";
-  } else {
-    const createdAt = Math.floor(Date.now() / 1000);
-    context = {
-      rp_id: process.env.WORLD_RP_ID || "rp_mock000000000",
-      nonce: `0x${randomBytes(32).toString("hex")}`,
-      created_at: createdAt,
-      expires_at: createdAt + 300,
-      signature: `0x${randomBytes(65).toString("hex")}`,
-    };
-    note =
-      "Mock context — unsigned. World App would reject this with invalid_rp_signature.";
+  let config;
+  try {
+    config = requireConfig();
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      return NextResponse.json(
+        { ok: false, error: "not_configured", problems: error.problems },
+        { status: 503 },
+      );
+    }
+    throw error;
   }
 
-  const res = NextResponse.json({
-    mode: config.mode,
+  const { id, isNew } = await resolveAccountId();
+
+  const signed = signRequest({
+    signingKeyHex: config.signingKey,
     action: config.action,
-    app_id: config.mode === "live" ? config.appId : null,
+    ttl: RP_CONTEXT_TTL_SECONDS,
+  });
+
+  const context: RpContext = {
+    rp_id: config.rpId,
+    nonce: signed.nonce,
+    created_at: signed.createdAt,
+    expires_at: signed.expiresAt,
+    signature: signed.sig,
+  };
+
+  const res = NextResponse.json({
+    ok: true,
+    action: config.action,
+    app_id: config.appId,
+    environment: config.environment,
+    environment_note: environmentAsymmetry(config),
     rp_context: context,
+    ttl_seconds: RP_CONTEXT_TTL_SECONDS,
     // The signal binds the proof to this account, so a proof minted for one
     // account cannot be replayed against another. World App hashes it with
-    // `hash_to_field`; the server re-derives it with `hashSignal` to compare.
+    // `hash_to_field`; the verify route re-derives it with `hashSignal`.
     signal: id,
-    note,
   });
   if (isNew) res.cookies.set(accountCookie(id));
   return res;

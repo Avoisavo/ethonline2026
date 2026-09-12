@@ -63,18 +63,6 @@ type VerifyResponse =
         anchorShort: string;
         lastShort: string;
       };
-      agent:
-        | { status: "exhausted"; roster: { taken: number; total: number } }
-        | {
-            status: "assigned" | "returning";
-            id: string;
-            callsign: string;
-            role: string;
-            claimedAt: number;
-            reclaims: number;
-            sessions: number;
-            roster: { taken: number; total: number };
-          };
       decision: Decision | null;
     }
   | { ok: false; errorCode: string; detail: string };
@@ -120,7 +108,6 @@ type LiveContext = {
   rp_context: RpContext;
   signal: string;
   environment: "production" | "staging" | "sandbox";
-  proof_version: "3.0" | "4.0";
 };
 
 /* ------------------------------------------------------------------ console */
@@ -272,7 +259,6 @@ export default function FaceConsole({
           rpContext={liveCtx.rp_context}
           signal={liveCtx.signal}
           environment={liveCtx.environment}
-          proofVersion={liveCtx.proof_version}
           open={liveOpen}
           onOpenChange={setLiveOpen}
           onResult={(result: IDKitResult) =>
@@ -310,11 +296,7 @@ export default function FaceConsole({
             {proof?.ok && proof.verify.status === 200 ? (
               <Pill tone="good">proof verified · HTTP 200</Pill>
             ) : null}
-            <Pill>
-              {state.proofVersion === "4.0"
-                ? "selfie · schema 11"
-                : "selfie · protocol 3.0"}
-            </Pill>
+            <Pill>selfie · protocol 3.0</Pill>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
             Selfie Check is low-friction and{" "}
@@ -353,62 +335,6 @@ export default function FaceConsole({
         <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
           {/* ------------------------------------------------ left column */}
           <div className="space-y-4">
-            <Panel
-              title="Your agent"
-              hint="One human, one agent. The claim is bound to your nullifier, so it survives clearing cookies and cannot be re-rolled."
-              right={
-                <span className="font-mono text-[10px] text-zinc-600">
-                  {state.roster.taken}/{state.roster.total} claimed
-                </span>
-              }
-            >
-              {state.agent ? (
-                <div>
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="text-2xl font-semibold tracking-tight text-zinc-50">
-                      {state.agent.callsign}
-                    </span>
-                    <Pill tone="good">{state.agent.id}</Pill>
-                    <Pill>{state.agent.role}</Pill>
-                  </div>
-                  <dl className="mt-3">
-                    <Field
-                      label="bound to nullifier"
-                      value={state.agent.nullifierShort}
-                    />
-                    <Field
-                      label="claimed"
-                      value={relativeTime(state.agent.claimedAt, now)}
-                    />
-                    <Field
-                      label="re-verified"
-                      value={`${state.agent.reclaims}× across ${state.agent.sessions} browser session(s)`}
-                    />
-                  </dl>
-                  <p className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs leading-relaxed text-emerald-200/85">
-                    This is the only agent you can ever be issued. Re-running a
-                    Selfie Check hands back{" "}
-                    <span className="font-medium">{state.agent.callsign}</span>,
-                    not a new agent — the nullifier is the same, so the registry
-                    recognizes you rather than allocating again.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-zinc-400">
-                    No agent yet. Pass a Selfie Check and one is assigned to you
-                    permanently.
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                    Assignment is keyed on the proof&apos;s nullifier, not on a
-                    cookie. Clearing site data, using a private window, or
-                    resetting this demo will not get you a second agent —
-                    it hands back the same one.
-                  </p>
-                </div>
-              )}
-            </Panel>
-
             <Panel
               title="Human anchor"
               hint="The nullifier captured at enrollment, and how the latest proof compares to it."
@@ -703,15 +629,11 @@ export default function FaceConsole({
                 Signs a fresh <code className="font-mono">rp_context</code>{" "}
                 server-side, then hands off to World App — deep link on mobile,
                 QR on desktop. Requests a World ID{" "}
-                <span className="text-zinc-200">{state.proofVersion}</span>{" "}
-                proof via{" "}
-                <code className="font-mono">
-                  {state.proofVersion === "4.0"
-                    ? 'CredentialRequest("selfie")'
-                    : "selfieCheckLegacy()"}
-                </code>
-                , and the server accepts only that version, so one human cannot
-                end up with two unlinkable anchors.
+                <span className="text-zinc-200">3.0</span> proof via{" "}
+                <code className="font-mono">selfieCheckLegacy()</code> — the
+                only version Selfie Check is issuable on. A 4.0 proof is refused
+                server-side, so one human cannot end up with two unlinkable
+                anchors.
               </p>
 
               <button

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { IDKitResult, RpContext } from "@worldcoin/idkit";
 
@@ -63,9 +63,53 @@ type VerifyResponse =
         anchorShort: string;
         lastShort: string;
       };
+      agent:
+        | { status: "exhausted"; roster: { taken: number; total: number } }
+        | {
+            status: "assigned" | "returning";
+            id: string;
+            callsign: string;
+            role: string;
+            claimedAt: number;
+            reclaims: number;
+            sessions: number;
+            roster: { taken: number; total: number };
+          };
       decision: Decision | null;
     }
   | { ok: false; errorCode: string; detail: string };
+
+/**
+ * Remediation for the World App error codes this flow can surface.
+ *
+ * Kept here because World's published error-code reference does not list every
+ * code the shipped SDK enum can emit — `feature_unavailable` among them — so
+ * there is nothing to search for when one arrives. Each entry says what to do,
+ * not just what happened.
+ */
+const WORLD_APP_ERRORS: Record<string, string> = {
+  feature_unavailable:
+    "Selfie Check is not enabled for this app_id. It is an access-gated beta — request the flag for your app. Nothing local can work around this.",
+  world_id_4_not_available:
+    "World App on this device predates World ID 4.0. Update World App. Falling back to a 3.0 proof is deliberately not offered: the 3.0 nullifier is a different, unlinkable value, so one human would end up with two anchors.",
+  credential_unavailable:
+    "This World App has never enrolled Selfie Check. The user completes enrollment inside World App first.",
+  verification_rejected:
+    "Liveness or face match failed inside World App. The user can retry; repeated failures are the credential working as intended.",
+  user_rejected: "The user dismissed the World App sheet.",
+  invalid_rp_signature:
+    "The rp_context signature was rejected. Usually the signing key does not match the portal's signer address, or SHA3-256 was used where Keccak-256 is required.",
+  rp_signature_expired:
+    "The rp_context outlived its 300s TTL. Mint a fresh one per attempt rather than caching it.",
+  duplicate_nonce:
+    "This rp_context nonce was already spent. Each attempt needs its own context.",
+  inclusion_proof_pending:
+    "The credential is still being included. Retryable — wait and run again.",
+  connection_failed:
+    "The bridge connection dropped before a proof came back. Retryable.",
+  max_verifications_reached:
+    "The action's verification cap is exhausted. A continuity gate needs unlimited re-verification, so the cap should not be set on this action.",
+};
 
 /** IDKit pulls in WASM, so keep it out of the server bundle and first paint. */
 const LiveSelfieCheck = dynamic(() => import("./live-widget"), { ssr: false });
@@ -75,6 +119,8 @@ type LiveContext = {
   action: string;
   rp_context: RpContext;
   signal: string;
+  environment: "production" | "staging" | "sandbox";
+  proof_version: "3.0" | "4.0";
 };
 
 /* ------------------------------------------------------------------ console */
@@ -225,18 +271,27 @@ export default function FaceConsole({
           action={liveCtx.action}
           rpContext={liveCtx.rp_context}
           signal={liveCtx.signal}
+          environment={liveCtx.environment}
+          proofVersion={liveCtx.proof_version}
           open={liveOpen}
           onOpenChange={setLiveOpen}
           onResult={(result: IDKitResult) =>
             void submit({ result, intent: pendingIntent.current })
           }
-          onFailure={(code: string) =>
+          onFailure={(code: string) => {
+            // Also log it: the widget renders its own "Something went wrong"
+            // screen over the page, so the code below can be missed entirely
+            // until the sheet is dismissed.
+            console.error("[selfie-check] IDKit error:", code);
             setProof({
               ok: false,
               errorCode: code,
-              detail: WORLD_APP_ERRORS[code] ?? "World App returned this error code.",
-            })
-          }
+              detail:
+                WORLD_APP_ERRORS[code] ??
+                "World App returned this error code. It is not in the mapped set — check the browser console and World's error-code reference.",
+            });
+            setLiveOpen(false);
+          }}
         />
       ) : null}
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -255,7 +310,11 @@ export default function FaceConsole({
             {proof?.ok && proof.verify.status === 200 ? (
               <Pill tone="good">proof verified · HTTP 200</Pill>
             ) : null}
-            <Pill>selfie · schema 11</Pill>
+            <Pill>
+              {state.proofVersion === "4.0"
+                ? "selfie · schema 11"
+                : "selfie · protocol 3.0"}
+            </Pill>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">
             Selfie Check is low-friction and{" "}
@@ -294,6 +353,62 @@ export default function FaceConsole({
         <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
           {/* ------------------------------------------------ left column */}
           <div className="space-y-4">
+            <Panel
+              title="Your agent"
+              hint="One human, one agent. The claim is bound to your nullifier, so it survives clearing cookies and cannot be re-rolled."
+              right={
+                <span className="font-mono text-[10px] text-zinc-600">
+                  {state.roster.taken}/{state.roster.total} claimed
+                </span>
+              }
+            >
+              {state.agent ? (
+                <div>
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-2xl font-semibold tracking-tight text-zinc-50">
+                      {state.agent.callsign}
+                    </span>
+                    <Pill tone="good">{state.agent.id}</Pill>
+                    <Pill>{state.agent.role}</Pill>
+                  </div>
+                  <dl className="mt-3">
+                    <Field
+                      label="bound to nullifier"
+                      value={state.agent.nullifierShort}
+                    />
+                    <Field
+                      label="claimed"
+                      value={relativeTime(state.agent.claimedAt, now)}
+                    />
+                    <Field
+                      label="re-verified"
+                      value={`${state.agent.reclaims}× across ${state.agent.sessions} browser session(s)`}
+                    />
+                  </dl>
+                  <p className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs leading-relaxed text-emerald-200/85">
+                    This is the only agent you can ever be issued. Re-running a
+                    Selfie Check hands back{" "}
+                    <span className="font-medium">{state.agent.callsign}</span>,
+                    not a new agent — the nullifier is the same, so the registry
+                    recognizes you rather than allocating again.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-zinc-400">
+                    No agent yet. Pass a Selfie Check and one is assigned to you
+                    permanently.
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                    Assignment is keyed on the proof&apos;s nullifier, not on a
+                    cookie. Clearing site data, using a private window, or
+                    resetting this demo will not get you a second agent —
+                    it hands back the same one.
+                  </p>
+                </div>
+              )}
+            </Panel>
+
             <Panel
               title="Human anchor"
               hint="The nullifier captured at enrollment, and how the latest proof compares to it."
@@ -588,10 +703,15 @@ export default function FaceConsole({
                 Signs a fresh <code className="font-mono">rp_context</code>{" "}
                 server-side, then hands off to World App — deep link on mobile,
                 QR on desktop. Requests a World ID{" "}
-                <span className="text-zinc-200">4.0</span> proof via{" "}
-                <code className="font-mono">CredentialRequest(&quot;selfie&quot;)</code>
-                , and the server refuses a 3.0 proof for this action so one human
-                cannot end up with two unlinkable anchors.
+                <span className="text-zinc-200">{state.proofVersion}</span>{" "}
+                proof via{" "}
+                <code className="font-mono">
+                  {state.proofVersion === "4.0"
+                    ? 'CredentialRequest("selfie")'
+                    : "selfieCheckLegacy()"}
+                </code>
+                , and the server accepts only that version, so one human cannot
+                end up with two unlinkable anchors.
               </p>
 
               <button
@@ -697,9 +817,9 @@ export default function FaceConsole({
                         {proof.credential.protocol_version}
                       </p>
                       <Json value={proof.verify.request} />
-                      {proof.verify.note ? (
-                        <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-600">
-                          {proof.verify.note}
+                      {proof.verify.environmentNote ? (
+                        <p className="mt-1.5 text-[10px] leading-relaxed text-amber-200/70">
+                          {proof.verify.environmentNote}
                         </p>
                       ) : null}
                       {proof.verify.response ? (

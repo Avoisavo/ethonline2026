@@ -63,6 +63,7 @@ export async function POST() {
     action: config.action,
     app_id: config.appId,
     environment: config.environment,
+    proof_version: config.proofVersion,
     environment_note: environmentAsymmetry(config),
     rp_context: context,
     ttl_seconds: RP_CONTEXT_TTL_SECONDS,

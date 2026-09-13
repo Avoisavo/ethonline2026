@@ -25,7 +25,7 @@ the next person repeating it.
 ```bash
 pnpm install
 pnpm typecheck        # must be silent
-pnpm test             # 93 tests
+pnpm test             # 102 tests
 pnpm petri status     # identity, policy, mode, ledger
 pnpm petri tree       # the whole tree, rejected branches included
 pnpm petri digest     # what an agent reads before proposing
@@ -36,7 +36,7 @@ The web app lives at the repository root: `npm run dev` there, then open http://
 
 ## State as of this handoff
 
-Working: typecheck clean, 93 tests pass, the tree loads. It holds 16 nodes: 3
+Working: typecheck clean, 102 tests pass, the tree loads. It holds 16 nodes: 3
 accepted, 2 rejected and 11 pending. Replay mode needs no API key.
 
 A hostile audit found five defects and all five are fixed:
@@ -62,8 +62,10 @@ verifier actually ran the benchmark. Nothing here does yet.
 
 1. Score `demo/positive-prompt.sh` live with `ANTHROPIC_API_KEY`. Replay cannot score
    a new harness, so it is recorded as `not-scored` until then.
-2. World ID Selfie Check, to make each verifier a distinct live human.
-3. x402 pay per verification run, which also limits spam submissions.
+2. Link each World ID wallet to its signing key, then turn the check on.
+   The check itself is in `src/trust/world.ts` and is off by default.
+3. Run `petri anchor create` and `petri anchor push` with a funded Hedera account.
+4. x402 pay per verification run, which also limits spam submissions.
 
 This repo's root already holds Hedera HCS and World AgentKit code.
 Call it rather than writing it again.

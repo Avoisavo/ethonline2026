@@ -77,7 +77,7 @@ other domains could look. Nobody measured them.
 cd petri
 pnpm install
 pnpm typecheck       # no output means it passed
-pnpm test            # 93 tests
+pnpm test            # 102 tests
 pnpm petri tree      # the whole tree, rejected branches included
 pnpm petri digest    # what the next agent reads before it proposes a change
 pnpm petri dead-ends # every rejected version with its reason
@@ -139,6 +139,66 @@ git clean -fd petri/.petri
 
 ---
 
+## Hedera and World ID
+
+### Every record on a public Hedera topic
+
+The local log `petri/.petri/log.jsonl` holds every record: each version, each
+verification and each status. `petri anchor` copies each line to a Hedera Consensus
+Service (HCS) topic, as the exact bytes on disk and in order.
+
+1. Get a testnet account from the Hedera portal.
+2. Set the account and its key:
+
+   ```bash
+   export HEDERA_OPERATOR_ID=0.0.12345
+   export HEDERA_OPERATOR_KEY=302e...
+   ```
+
+3. Create the topic. It has no admin key and no submit key, so nobody can delete it:
+
+   ```bash
+   cd petri
+   pnpm petri anchor create --network testnet
+   ```
+
+4. Send the records that already exist:
+
+   ```bash
+   pnpm petri anchor push
+   pnpm petri anchor status   # the topic, the count, and the HashScan link
+   ```
+
+After this, `verify`, `submit`, `evolve` and `publish` send their new records to the
+topic by themselves. Anyone can read the topic from the public mirror node and rebuild
+the log. The hash chain in each line then shows that no line was changed or removed.
+If a local line changes after it reached Hedera, `petri anchor status` reports it.
+
+The anchor code has tests with a fake topic. It has not been run against a real topic
+on this tree yet.
+
+### World ID after each verification
+
+After `petri verify` signs a report, it can check the verifier with World ID. The check
+is **off** by default.
+
+```bash
+PETRI_WORLD_ID=1 PETRI_WORLD_ADDRESS=0xYourAgentWallet \
+  PETRI_HOME=~/my-verifier pnpm petri verify <node>
+```
+
+1. The check looks up the wallet in World AgentBook on World Chain.
+2. It records the anonymous human id, or the reason there is none, in
+   `.petri/world-checks.jsonl`.
+3. `petri anchor` sends that record to the same Hedera topic.
+
+The lookup has run against World Chain. Two limits stay:
+
+- The check does not yet prove that the wallet belongs to the key that signed the report.
+- It does not change the acceptance rule. A report without a human id still counts.
+
+---
+
 ## Add a new version
 
 ```bash
@@ -172,8 +232,10 @@ The live path has not been run on this tree yet.
 
 - **A verifier can sign without running the benchmark.** Nothing compares result hashes
   across verifiers yet.
-- **Distinct keys are not distinct people.** One person can create many keys. The log is
-  local to one machine.
+- **Distinct keys are not distinct people.** One person can create many keys. The World ID
+  check is off by default, and it does not yet link a wallet to a signing key.
+- **A Hedera topic proves order and time, not honesty.** It shows when each record was
+  written. It does not show that the benchmark really ran.
 - **Replay covers 2 harness versions.** A new harness needs a live run to get a score.
 - **The benchmark is 20 tasks.** A gain here may not carry over to other work.
 - **Live mode is not deterministic.** The median of 5 runs reduces noise. It does not remove it.
@@ -188,4 +250,6 @@ The live path has not been run on this tree yet.
 | `lib/showcase.ts` | The showcase trees for other domains |
 | `petri/` | The engine: CLI, benchmark, harness, recorded tree. See `petri/README.md`. |
 | `petri/SPEC.md` | The contract for hashing, signing, the acceptance rule and the CLI |
-| `lib/hedera/`, `lib/hedera2/`, `lib/hederaone/`, `pages/api/cannes2026/`, `docs/` | Hedera and World integration code. It builds. It is not connected to Petri yet. |
+| `petri/src/consensus/anchor.ts`, `petri/src/cli/anchor.ts` | The Hedera topic copy of every record |
+| `petri/src/trust/world.ts` | The World ID check after `petri verify` |
+| `lib/hedera/`, `lib/hedera2/`, `lib/hederaone/`, `pages/api/cannes2026/`, `docs/` | Earlier Hedera and World code for the web side. It builds. The web app does not use it yet. |

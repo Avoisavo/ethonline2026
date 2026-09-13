@@ -91,7 +91,7 @@ No API key and no Hedera account are needed for these steps.
 ```bash
 pnpm install
 pnpm typecheck                  # no output means it passed
-pnpm test                       # 93 tests
+pnpm test                       # 102 tests
 pnpm petri id create --label me # your own key. The repo never ships a private key.
 pnpm petri tree                 # the whole tree, rejected branches included
 pnpm petri digest               # what an agent reads before proposing
@@ -102,7 +102,8 @@ pnpm petri evolve --dry-run     # the digest and the exact prompt a model would 
 ```
 
 Registered commands: `init config id topic snapshot propose submit show tree tips
-dead-ends lineage diff evolve verify status publish digest areas export fsck`.
+dead-ends lineage diff evolve verify status publish digest areas export fsck
+anchor`.
 
 ---
 
@@ -133,6 +134,31 @@ The live path has not been run on this tree yet.
 - The solution runs in a second child process. The test source is never written to disk.
   See `bench/src/sandbox.ts`.
 - `petri verify` refuses a node that was never scored, and exits 4.
+
+---
+
+## Hedera anchor and World ID
+
+`petri anchor` copies every line of `.petri/log.jsonl` and `.petri/world-checks.jsonl`
+to a Hedera Consensus Service topic, as the exact bytes and in order. The local log
+stays the source of the tree. See `src/consensus/anchor.ts`.
+
+```bash
+export HEDERA_OPERATOR_ID=0.0.12345 HEDERA_OPERATOR_KEY=302e...
+pnpm petri anchor create --network testnet   # a topic with no admin key and no submit key
+pnpm petri anchor push                       # send every record not on the topic yet
+pnpm petri anchor status                     # counts, mirror URL and HashScan URL
+```
+
+When a topic is set up, `verify`, `submit`, `evolve` and `publish` send their new records
+by themselves. A receipt for each line goes into `.petri/anchors.jsonl`. A line that
+changes after it reached Hedera is reported, and the push stops. The anchor is tested
+with a fake topic. It has not been run against a real topic on this tree yet.
+
+`petri verify` runs a World ID check after it signs the report. It is off unless
+`PETRI_WORLD_ID=1`. It looks up `PETRI_WORLD_ADDRESS` in World AgentBook on World Chain
+and records the result in `.petri/world-checks.jsonl`. See `src/trust/world.ts`. The
+check does not link the wallet to the signing key yet, and it does not change acceptance.
 
 ---
 
@@ -167,4 +193,4 @@ The live path has not been run on this tree yet.
 | `bench/` | 20 tasks, the sandbox, the runner, the median, the recorded fixtures |
 | `harness/` | The harness files under evolution. `contract.ts` is frozen |
 | `demo/` | The positive-prompt demo change and its script |
-| `test/` | 93 tests |
+| `test/` | 102 tests |

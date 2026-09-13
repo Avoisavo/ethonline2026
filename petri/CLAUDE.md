@@ -36,8 +36,8 @@ The web app lives at the repository root: `npm run dev` there, then open http://
 
 ## State as of this handoff
 
-Working: typecheck clean, 93 tests pass, the tree loads. It holds 12 nodes: 2
-accepted, 1 rejected and 9 pending. Replay mode needs no API key.
+Working: typecheck clean, 93 tests pass, the tree loads. It holds 16 nodes: 3
+accepted, 2 rejected and 11 pending. Replay mode needs no API key.
 
 A hostile audit found five defects and all five are fixed:
 

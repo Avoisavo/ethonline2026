@@ -53,7 +53,7 @@ with its hypothesis and reason.
 
 ## The recorded tree
 
-`.petri/` holds 12 nodes: 2 accepted, 1 rejected and 9 pending.
+`.petri/` holds 16 nodes: 3 accepted, 2 rejected and 11 pending.
 
 | Node | Status | What it tried |
 |---|---|---|
@@ -61,18 +61,22 @@ with its hypothesis and reason.
 | `ecc7cdb0` | accepted, +7000bp | Full symbol signatures and one worked example |
 | `872aaa3d` | rejected, -7000bp | Removing the signatures and the example again |
 | `ea3b7532` | accepted, +7000bp | Restoring them, one step after the rejected node |
-| 7 pending nodes | pending | Changes stopped by a guard, the typecheck, or unscored in replay |
+| `f07e0c55` | rejected, -7000bp | Trimming the prompt again to save tokens |
+| `92dc9c49` | accepted, +7000bp | Restoring the signatures after the trim |
+| `ec1d39e6` | pending, 1 of 2 keys | An independent re-test of signatures and example |
+| `e1adae18` | pending, 1 of 2 keys | A short prompt without the reply-shape block |
 | `2e7f6b5b` | pending, not scored | Stating every prompt rule as a positive directive |
+| 7 pending nodes | pending | Changes stopped by a guard or the typecheck |
 
 This is the start of the real `petri digest` output for this tree:
 
 ```
-# PETRI DIGEST  ledger 12 nodes  digest-hash 8ac87768
+# PETRI DIGEST  ledger 16 nodes  digest-hash a1691051
 bench petri-bench-v1 5ec2e9b8 | 20 tasks | unit tests only | N=5 runs | MEDIAN
 mode REPLAY (deterministic, no API key). REPLAY never compares against LIVE.
 ledger LOCAL — UNVERIFIED. See the trust banner.
-totals: 2 accepted | 1 rejected | 9 pending | 0 contested
-head n007 9500bp | root n000 0bp | lift +9500bp over 3 accepted steps
+totals: 3 accepted | 2 rejected | 11 pending | 0 contested
+head n014 9500bp | root n000 0bp | lift +9500bp over 5 accepted steps
 ```
 
 The digest is what an agent reads before it proposes a node. It lists what won, what

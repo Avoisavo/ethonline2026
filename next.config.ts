@@ -5,6 +5,7 @@ import type { NextConfig } from "next";
 // Pin the root so Next does not guess the wrong workspace.
 const nextConfig: NextConfig = {
   turbopack: { root: path.join(__dirname) },
+  devIndicators: false
 };
 
 export default nextConfig;

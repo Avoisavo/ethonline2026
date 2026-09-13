@@ -74,6 +74,13 @@ export function registerVerify(program: Command): void {
         const node = view.nodes.get(id);
         if (node === undefined) fail(EXIT.NOT_FOUND, `no node ${id}`);
 
+        // A change that a guard or the typecheck stopped was never measured. There is
+        // no score to re-run and sign, so refuse here instead of measuring a harness
+        // that never ran. Its status stays pending by design (SPEC §13.1): the reason
+        // lives in detail.mechanical, where the CLI and the UI show it.
+        const blocked = verifyBlocker(node);
+        if (blocked !== null) fail(EXIT.REFUSED, blocked);
+
         const identity = ctx.identity();
 
         // Design rule 1, enforcement 1 of 3. §9.4. The guard itself lives in
@@ -501,4 +508,14 @@ export function registerPublish(program: Command): void {
       out(`seq     ${receipt.seq}`);
       out(`tx      ${receipt.txId}`);
     });
+}
+
+/** Why this node cannot be verified, or null. Pure, so it is unit tested. */
+export function verifyBlocker(node: Pick<PetriNode, 'id' | 'detail'>): string | null {
+  const m = node.detail.mechanical;
+  if (m.cls === 'ok') return null;
+  return (
+    `node ${shortId(node.id)} was stopped before scoring (${m.cls}).\n` +
+    '       Nothing was measured, so there is no score to verify. It stays in the tree as a record.'
+  );
 }

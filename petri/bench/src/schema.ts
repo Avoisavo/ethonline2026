@@ -32,7 +32,7 @@ export type Outcome = 'pass' | 'fail' | 'timeout' | 'crash' | 'tampered' | 'no_a
  * The machine the measurement ran on. Descriptive. The accept rule never reads it.
  * SPEC.md §6.5 prints this shape beside `VerificationReport`, in `src/trust/report.ts`.
  * `bench` sits at L3 and may not import `src/trust`, so the shape is restated here.
- * TypeScript is structural, so the two are the same type. See NOTES-bench.md, gap 1.
+ * TypeScript is structural, so the two are the same type.
  */
 export interface EnvDescriptor {
   arch: string;
@@ -82,7 +82,7 @@ export interface RunResult {
 /**
  * A bench failure that carries a SPEC.md §14.1 exit code.
  * `src/cli/exit.ts` reads `exitCode` structurally, so this needs no import from
- * `src/core/errors.ts`, which sits outside the bench import list. See NOTES-bench.md, gap 6.
+ * `src/core/errors.ts`, which sits outside the bench import list.
  */
 export class BenchError extends Error {
   readonly exitCode: number;
@@ -140,7 +140,7 @@ export function runResultToCanon(result: RunResult): Canon {
  * for each run, so a verifier who invented numbers can be caught. `contentId` of the
  * whole `RunResult` cannot serve, because §10.8 puts a uuid, two wall clocks and an
  * `EnvDescriptor` inside it, and those differ on every machine by design. This
- * projection drops exactly those fields. See NOTES-bench.md, gap 3.
+ * projection drops exactly those fields.
  */
 export function runDigestInput(result: RunResult): Canon {
   return {

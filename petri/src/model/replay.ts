@@ -57,7 +57,7 @@ export { REPO_ROOT };
 export const FIXTURES_DIR = `${REPO_ROOT}/bench/fixtures`;
 export const TASKS_DIR = `${REPO_ROOT}/bench/tasks`;
 export const FIXTURE_INDEX_FILE = 'index.json';
-/** The snapshot sidecar. It is a Petri addition. See NOTES-model.md. */
+/** The snapshot sidecar. It is a Petri addition. */
 export const FIXTURE_HARNESSES_FILE = 'harnesses.json';
 
 /* -------------------------------------------------------------------------- */

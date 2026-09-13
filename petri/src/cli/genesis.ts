@@ -4,7 +4,6 @@
  *
  * A genesis node cannot go through `runCandidate()`, because a proposal carries
  * at most two changed files (§13.2) and a genesis carries the whole harness.
- * The gap is recorded in NOTES-cli.md.
  *
  * The genesis node is NOT measured here. §6.4 says an author's own runs never
  * count toward acceptance, so an unmeasured genesis loses nothing. Two

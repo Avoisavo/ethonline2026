@@ -37,8 +37,7 @@ export interface ReplayResult {
  * `VerificationSigned` for a node therefore sets it.
  *
  * This default is never observable: a node with no verification is always
- * `pending` with INSUFFICIENT_VERIFICATIONS, whatever its mode. See
- * NOTES-trust.md.
+ * `pending` with INSUFFICIENT_VERIFICATIONS, whatever its mode.
  */
 const DEFAULT_MODE: Mode = 'replay';
 

@@ -23,7 +23,7 @@ import { HederaLog, makeClient } from './hedera.js';
  *
  * Declared as a type alias, not an interface. A local log line IS the canonical
  * JSON of this object, so it must satisfy `Canon`, and TypeScript gives an
- * implicit index signature to an object type alias only. See NOTES-trust.md.
+ * implicit index signature to an object type alias only.
  */
 export type LogEntry = {
   chain: string;           // hcs: the running hash, as hex. local: our own sha256 chain.

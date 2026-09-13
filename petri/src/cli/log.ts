@@ -6,8 +6,8 @@
  * command that prints an apology is worse than a command that does not exist:
  * `petri --help` then stays an honest list of what this binary can do.
  *
- * The document is `petri/export/1`, the shape NOTES-web.md §3 fixes and the one
- * `web/index.html` reads. It is DISPLAY OUTPUT. It is never hashed and never
+ * The document is `petri/export/1`, the shape the web app at the repository
+ * root reads. It is DISPLAY OUTPUT. It is never hashed and never
  * signed, so §2 of the contract does not bind it and `null` is allowed here for
  * "not computable".
  *
@@ -39,7 +39,7 @@ export const EXPORT_PROTOCOL = 'petri/export/1';
 const CLI_VERSION = 'petri 0.1.0';
 
 /* ------------------------------------------------------------------ *
- * The document. NOTES-web.md §3 is the binding shape.
+ * The document. These interfaces are the binding shape.
  * ------------------------------------------------------------------ */
 
 export interface RunnerRow {
@@ -192,7 +192,7 @@ async function readLogFacts(ctx: Ctx): Promise<{
   return { lastSeq, headHash, wire };
 }
 
-/** `n013`. Display only. It must never enter a hash. NOTES-web.md §5.2. */
+/** `n013`. Display only. It must never enter a hash. */
 const labelOf = (seq: number): string => `n${String(seq).padStart(3, '0')}`;
 
 /** Medians of the author's CLAIMED runs. Never a sum, never a mean. */
@@ -428,6 +428,5 @@ export function registerExport(program: Command): void {
         `${doc.stats.contested} contested)`);
       out(`tree    ${doc.tree}  mode ${doc.mode}  trust ${doc.trust}`);
       if (doc.stats.head !== '') out(`head    ${shortId(doc.stats.head)}`);
-      note(ctx, 'Open web/index.html beside this file to read the tree in a browser.');
     });
 }

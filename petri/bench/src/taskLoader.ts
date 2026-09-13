@@ -55,7 +55,7 @@ export function countTopLevelTests(source: string): number {
 
 /**
  * Read the constraint lines out of a `## Rules` section of PROMPT.md.
- * Deterministic, and it needs no extra field in `task.json`. See NOTES-bench.md, gap 4.
+ * Deterministic, and it needs no extra field in `task.json`.
  */
 export function extractConstraints(prompt: string): string[] {
   const out: string[] = [];

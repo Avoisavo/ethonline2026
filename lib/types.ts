@@ -1,5 +1,5 @@
 // The subset of `petri export` (protocol petri/export/1) this UI reads.
-// Full contract: petri/NOTES-web.md section 3.
+// Full contract: the Export* interfaces in petri/src/cli/log.ts.
 
 export type NodeStatus =
   | "accepted" | "rejected" | "pending" | "contested" | "withdrawn" | "superseded";

@@ -280,7 +280,7 @@ test('a self-report is printed as ignored, never as a verifier', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Case 1b — the per-report answer `petri export` writes into web/tree.json.    */
+/* Case 1b — the per-report answer `petri export` writes for the web app.       */
 /* -------------------------------------------------------------------------- */
 
 test('the export flag marks the repeat, not just the key, as ignored', () => {

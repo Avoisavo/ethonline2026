@@ -23,7 +23,7 @@ export function signingBytes(domain: Domain, body: Canon): Buffer {
  * An envelope is canonicalised (it goes inside a log line), so it must satisfy
  * `Canon`. TypeScript gives an implicit index signature to an object type alias
  * and NOT to an interface, so an interface here would fail `B extends Canon`.
- * See NOTES-trust.md.
+ *
  *
  * The key order after sorting is `body, pub, sig, ver`. That is the wire order.
  */

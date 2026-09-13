@@ -12,7 +12,7 @@
  *
  * Every record type here is a TYPE ALIAS, not an interface. A report is hashed
  * and signed, so it must satisfy `Canon`. TypeScript gives an implicit index
- * signature to an object type alias and NOT to an interface. See NOTES-trust.md.
+ * signature to an object type alias and NOT to an interface.
  *
  * The record types and their Zod schemas are declared ONCE, in src/core/schema.ts,
  * which SPEC.md section 15 makes the owner of every shared interface and schema.

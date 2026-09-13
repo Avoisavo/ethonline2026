@@ -61,7 +61,7 @@ export class InfrastructureError extends Error {
  * An error that must stop the whole command, not score one task zero.
  * A replay fixture miss is the case SPEC.md §10.10 rule 1 names: it is a hard error
  * and it never falls back. A producer marks it with `fatal: true` or the name
- * `FixtureMissError`. See NOTES-bench.md, gap 5.
+ * `FixtureMissError`.
  */
 export function isFatal(e: unknown): boolean {
   if (e === null || typeof e !== 'object') return false;

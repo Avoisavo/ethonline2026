@@ -55,7 +55,13 @@ export function nodeNumbers(n: ExportNode, nodes: ExportNode[], total: number, m
       : `baseline · ${shortTasks(rerun, total)} when re-run`;
   }
   if (isBlocked(n)) return `claims ${shortTasks(claimBp(n, nodes), total)} · 0 of ${minVer} keys`;
-  if (n.status === "pending") return `claims ${shortTasks(n.detail.claimedMedianBp, total)} · ${c} of ${minVer} keys`;
+  if (n.status === "pending") {
+    // One key has measured it: show that measurement, not the author claim.
+    const v = n.verifications.find((x) => x.counted);
+    return v
+      ? `${shortTasks(v.candidate.medianBp, total)} · ${signedBp(v.deltaMedianBp)} · ${c} of ${minVer} keys`
+      : `claims ${shortTasks(n.detail.claimedMedianBp, total)} · ${c} of ${minVer} keys`;
+  }
   return `${shortTasks(n.detail.claimedMedianBp, total)} · ${signedBp(n.verifiedDeltaBp)} · ${c} ${c === 1 ? "key" : "keys"} agree`;
 }
 

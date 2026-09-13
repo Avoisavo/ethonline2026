@@ -28,7 +28,10 @@ export function Stats({ d }: { d: PetriExport }) {
     while (cur && !isRoot(cur, ids) && !seen.has(cur.id)) { seen.add(cur.id); cur = byId.get(cur.parent); depth++; }
     return depth;
   };
-  const pts = nodes.map((n) => ({ n, d: depthOf(n), t: tasksOf(scoreBpOf(n, nodes, ids), total) }));
+  const all = nodes.map((n) => ({ n, d: depthOf(n), t: tasksOf(scoreBpOf(n, nodes, ids), total) }));
+  // Like an eval chart, plot only versions that were measured. A blocked version has no score.
+  const pts = all.filter((p) => !isBlocked(p.n));
+  const unscored = all.length - pts.length;
 
   // The accepted spine: the best version and every ancestor back to the start.
   const spine: typeof pts = [];
@@ -129,19 +132,22 @@ export function Stats({ d }: { d: PetriExport }) {
         <div className="legend">
           <span><svg width="34" height="14" aria-hidden="true"><line className="c-line" x1="2" x2="32" y1="7" y2="7" /><circle className="c-pass" cx="17" cy="7" r="5" /></svg>Accepted, and became the new parent</span>
           <span><svg width="16" height="16" aria-hidden="true"><circle className="c-fail" cx="8" cy="8" r="5.5" /></svg>Rejected, and kept in the tree</span>
-          <span><svg width="16" height="16" aria-hidden="true"><circle className="c-wait" cx="8" cy="8" r="5.5" /></svg>Pending</span>
+          {others.some((p) => p.n.status !== "accepted" && p.n.status !== "rejected") && (
+            <span><svg width="16" height="16" aria-hidden="true"><circle className="c-wait" cx="8" cy="8" r="5.5" /></svg>Pending</span>
+          )}
         </div>
         <figcaption id="chart-cap">
           Each round is one generation deeper in the tree. Scores are medians re-run by other keys, from the real tree.
           A version passes only if it beats its parent by {signedBp(d.policy.minDeltaBp)}.
+          {unscored > 0 && ` ${unscored} ${unscored === 1 ? "version was" : "versions were"} stopped before scoring and ${unscored === 1 ? "is" : "are"} not plotted. See the table.`}
         </figcaption>
         <details className="table-view">
           <summary>Show as a table</summary>
           <table>
             <thead><tr><th scope="col">Version</th><th scope="col">Round</th><th scope="col">Status</th><th scope="col">Score</th></tr></thead>
             <tbody>
-              {pts.map((p) => (
-                <tr key={p.n.id}><td><code>{p.n.short}</code></td><td>{p.d === 0 ? "start" : p.d}</td><td>{STATUS_WORD[p.n.status]}</td><td>{p.t}/{total} tasks</td></tr>
+              {all.map((p) => (
+                <tr key={p.n.id}><td><code>{p.n.short}</code></td><td>{p.d === 0 ? "start" : p.d}</td><td>{STATUS_WORD[p.n.status]}</td><td>{isBlocked(p.n) ? "not scored" : `${p.t}/${total} tasks`}</td></tr>
               ))}
             </tbody>
           </table>

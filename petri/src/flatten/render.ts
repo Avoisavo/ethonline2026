@@ -439,7 +439,7 @@ function sectionConstraints(d: Digest, plan: Plan, trimmed: string[]): string[] 
   out.push(`at most ${c.maxFiles} files changed, at most ${c.maxChangedLines} changed lines`);
   out.push('harness/contract.ts is immutable. solve() keeps its signature.');
   out.push('imports: relative siblings inside harness/ only');
-  out.push(`the win margin is ${c.minDeltaBp}bp. A smaller measured gain is recorded as a tie.`);
+  out.push(`the win margin is ${c.minDeltaBp}bp. A smaller measured gain is rejected as WITHIN_NOISE, and kept.`);
   out.push('a SATURATED area needs whyNotUntested. An exhausted motif needs contradicts.');
 
   if (d.knownMotifs.length > 0) {

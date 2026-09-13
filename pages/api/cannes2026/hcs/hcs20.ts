@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getClient } from "@/lib/cannes2026/hedera";
+import { getClient } from "@/lib/hedera2/hedera";
 import {
   createTopic,
   submitMessage,
@@ -10,7 +10,7 @@ import {
   buildHCS20Burn,
   buildHCS20Transfer,
   computeHCS20Balances,
-} from "@/lib/cannes2026/hcs-standards";
+} from "@/lib/hedera2/hcs-standards";
 
 export default async function handler(
   req: NextApiRequest,

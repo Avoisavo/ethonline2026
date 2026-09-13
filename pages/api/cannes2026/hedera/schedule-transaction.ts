@@ -4,7 +4,7 @@ import {
   TransferTransaction,
   Hbar,
 } from "@hashgraph/sdk";
-import { getClient } from "@/lib/cannes2026/hedera";
+import { getClient } from "@/lib/hedera2/hedera";
 
 export default async function handler(
   req: NextApiRequest,

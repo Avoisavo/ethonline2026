@@ -25,20 +25,19 @@ the next person repeating it.
 ```bash
 pnpm install
 pnpm typecheck        # must be silent
-pnpm test             # 84 tests
+pnpm test             # 93 tests
 pnpm petri status     # identity, policy, mode, ledger
 pnpm petri tree       # the whole tree, rejected branches included
 pnpm petri digest     # what an agent reads before proposing
 pnpm petri dead-ends  # every failure with its reason
 ```
 
-Open `web/index.html` for the tree view.
+The web app lives at the repository root: `npm run dev` there, then open http://localhost:3000.
 
 ## State as of this handoff
 
-Working: typecheck clean, 84 tests pass, the tree loads. It ships one accepted
-node at +7000bp, one rejected node at -7000bp, and one pending root. Replay mode
-needs no API key.
+Working: typecheck clean, 93 tests pass, the tree loads. It holds 12 nodes: 2
+accepted, 1 rejected and 9 pending. Replay mode needs no API key.
 
 A hostile audit found five defects and all five are fixed:
 
@@ -61,10 +60,10 @@ verifier actually ran the benchmark. Nothing here does yet.
 
 ## Next
 
-1. `petri evolve` does not exist, though the CLI text mentions it. It is the
-   demo's third scene: an agent reads a failure, then makes a better attempt.
+1. Score `demo/positive-prompt.sh` live with `ANTHROPIC_API_KEY`. Replay cannot score
+   a new harness, so it is recorded as `not-scored` until then.
 2. World ID Selfie Check, to make each verifier a distinct live human.
 3. x402 pay per verification run, which also limits spam submissions.
 
-This repo's root already holds working Hedera HCS and World AgentKit code.
+This repo's root already holds Hedera HCS and World AgentKit code.
 Call it rather than writing it again.

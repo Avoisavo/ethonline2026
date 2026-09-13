@@ -1,7 +1,10 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
+// ui/ sits inside petri/, which sits inside a repo with its own lockfile.
+// Pin the root so Next does not guess the wrong workspace.
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: { root: path.join(__dirname) },
 };
 
 export default nextConfig;

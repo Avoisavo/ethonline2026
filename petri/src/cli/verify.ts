@@ -22,6 +22,7 @@ import {
   SelfVerificationError,
   type SignedReport,
 } from '../trust/report.js';
+import { appendWorldCheck, runWorldCheck, worldCheckLine } from '../trust/world.js';
 import { EXIT, fail } from './exit.js';
 import {
   asCanon,
@@ -243,6 +244,13 @@ export function registerVerify(program: Command): void {
           );
         }
 
+        // World ID runs after the report is signed and published. It is off by
+        // default, and it never changes the acceptance rule. See src/trust/world.ts.
+        const world = await runWorldCheck({
+          tree: ctx.config.treeId, node: id, report: reportId, runner: identity.runnerId,
+        });
+        if (world.status === 'done') appendWorldCheck(ctx.root, world.record);
+
         // Re-derive the status from the evidence, this report included.
         const after = await loadTree(ctx);
         const updated = after.nodes.get(id);
@@ -260,6 +268,7 @@ export function registerVerify(program: Command): void {
             clean,
             runs,
             seq,
+            world: world.status === 'done' ? world.record : null,
             status: updated?.status ?? node.status,
             statusCode: updated?.statusCode ?? node.statusCode,
             statusReason: updated?.statusReason ?? node.statusReason,
@@ -275,6 +284,7 @@ export function registerVerify(program: Command): void {
         out(`spread     ${spreadBp}bp over the candidate runs`);
         out(`clean      ${clean ? 'yes' : 'NO — a tampered or short batch cannot support a node'}`);
         out(`published  ${seq === null ? 'NO' : `seq ${seq}`}`);
+        out(`world id   ${worldCheckLine(world)}`);
         out('');
         if (!clean) {
           out('One or more runs were tampered with or discarded. This report publishes');

@@ -19,6 +19,8 @@ import { registerVerify, registerStatus, registerPublish } from './verify.js';
 import { registerDigest, registerAreas } from './digest.js';
 import { registerExport } from './log.js';
 import { registerFsck } from './fsck.js';
+import { autoAnchor, registerAnchor } from './anchor.js';
+import { isAbsolute, resolve } from 'node:path';
 
 const VERSION = '0.1.0';
 
@@ -51,6 +53,7 @@ export function buildProgram(): Command {
   registerAreas(program);
   registerExport(program);
   registerFsck(program);
+  registerAnchor(program);
 
   return program;
 }
@@ -90,6 +93,9 @@ export async function main(argv: readonly string[]): Promise<void> {
     flushAndExit(exitCodeOf(err));
     return;
   }
+  // Send any new records to the Hedera topic, when one is set up.
+  const rawRoot = (program.opts() as { root?: string }).root ?? DEFAULT_ROOT;
+  await autoAnchor(argv, isAbsolute(rawRoot) ? rawRoot : resolve(process.cwd(), rawRoot));
   flushAndExit(process.exitCode === undefined ? EXIT.OK : Number(process.exitCode));
 }
 

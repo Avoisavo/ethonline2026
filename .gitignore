@@ -49,3 +49,9 @@ next-env.d.ts
 .skill-cache/
 .harness-skills/
 .harness-context/
+
+# runtime state + audit data (written by lib/hederaone state.ts / db.mjs, used by the Arc flow)
+mars-state.json
+agent-pending.json
+/db
+/skills

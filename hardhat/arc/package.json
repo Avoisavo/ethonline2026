@@ -1,0 +1,16 @@
+{
+  "name": "hardhat-arc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:arc": "hardhat ignition deploy ignition/modules/Counter.ts --network arcTestnet",
+    "deploy:escrow": "hardhat ignition deploy ignition/modules/ethonlineArc.ts --network arcTestnet --deployment-id escrow-real"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
+    "dotenv": "^17.4.2",
+    "hardhat": "^3.9.0"
+  }
+}

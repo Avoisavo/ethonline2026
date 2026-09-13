@@ -10,12 +10,18 @@
     "harness:run": "hedera-harness run .harness/spec.yaml"
   },
   "dependencies": {
+    "@circle-fin/x402-batching": "^3.4.0",
     "@hashgraph/sdk": "^2.81.0",
+    "@rainbow-me/rainbowkit": "^2.2.11",
+    "@tanstack/react-query": "^5.102.8",
     "@worldcoin/agentkit": "^0.2.1",
+    "dotenv": "^17.4.2",
     "next": "16.3.4",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "viem": "^2.56.5",
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -25,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

@@ -1,0 +1,7 @@
+node_modules
+.env
+artifacts
+cache
+types
+# Hardhat Ignition keeps deployment journals here; safe to ignore for a throwaway testnet deploy.
+ignition/deployments

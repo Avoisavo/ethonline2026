@@ -10,7 +10,7 @@ import type { Command } from 'commander';
 import { createTopic, type HederaNetwork } from '../consensus/hedera.js';
 import {
   anchorStatus, hashscanTopicUrl, hcsSubmitter, loadAnchorConfig, mirrorMessagesUrl,
-  pushAnchors, saveAnchorConfig, type AnchorConfig,
+  pushAnchors, saveAnchorConfig, type AnchorConfig, type AnchorReceipt,
 } from '../consensus/anchor.js';
 import { EXIT, fail } from './exit.js';
 import { emitJson, globalOptions, openCtx, out } from './context.js';
@@ -24,13 +24,21 @@ function hasOperator(env: NodeJS.ProcessEnv = process.env): boolean {
   return (env['HEDERA_OPERATOR_ID'] ?? '').trim() !== '' && (env['HEDERA_OPERATOR_KEY'] ?? '').trim() !== '';
 }
 
-async function push(root: string, cfg: AnchorConfig): Promise<{ pushed: number; error: string | null }> {
+async function push(root: string, cfg: AnchorConfig): Promise<{ pushed: AnchorReceipt[]; error: string | null }> {
   const sender = hcsSubmitter(cfg);
   try {
-    const result = await pushAnchors(root, cfg, sender.submit);
-    return { pushed: result.pushed.length, error: result.error };
+    return await pushAnchors(root, cfg, sender.submit);
   } finally {
     sender.close();
+  }
+}
+
+/** One block per record: where it landed, and a link anyone can open. */
+function printReceipts(cfg: AnchorConfig, receipts: readonly AnchorReceipt[]): void {
+  for (const r of receipts) {
+    out(`  ${r.source} line ${r.localSeq}  ->  topic seq ${r.hcsSeq}`);
+    out(`    tx      ${r.txId}`);
+    out(`    mirror  ${mirrorMessagesUrl(cfg)}/${r.hcsSeq}`);
   }
 }
 
@@ -88,7 +96,8 @@ export function registerAnchor(program: Command): void {
       const after = anchorStatus(g.root);
       if (g.json) { emitJson(ctx, { topicId: cfg.topicId, pushed: result.pushed, anchored: after.anchored, total: after.total, error: result.error }); }
       else {
-        out(`sent      ${result.pushed} records to ${cfg.topicId}`);
+        out(`sent      ${result.pushed.length} records to ${cfg.topicId}`);
+        printReceipts(cfg, result.pushed);
         out(`anchored  ${after.anchored} of ${after.total}`);
         out(`hashscan  ${hashscanTopicUrl(cfg)}`);
       }
@@ -132,6 +141,8 @@ export function registerAnchor(program: Command): void {
  */
 export async function autoAnchor(argv: readonly string[], root: string): Promise<void> {
   if (!argv.slice(2).some((a) => WRITERS.has(a))) return;
+  // PETRI_ANCHOR_AUTO=0 holds the records back until `petri anchor push`.
+  if ((process.env['PETRI_ANCHOR_AUTO'] ?? '').trim() === '0') return;
   let cfg: AnchorConfig | null;
   try { cfg = loadAnchorConfig(root); } catch { return; }
   if (cfg === null) return;
@@ -144,7 +155,7 @@ export async function autoAnchor(argv: readonly string[], root: string): Promise
   }
   try {
     const result = await push(root, cfg);
-    process.stderr.write(`hedera     sent ${result.pushed} records to ${cfg.topicId}\n`);
+    process.stderr.write(`hedera     sent ${result.pushed.length} records to ${cfg.topicId}\n`);
     if (result.error !== null) process.stderr.write(`petri: ${result.error}\n`);
   } catch (err) {
     process.stderr.write(`petri: the records were not sent to Hedera: ${(err as Error).message}\n`);

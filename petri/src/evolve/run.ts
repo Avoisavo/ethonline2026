@@ -47,6 +47,7 @@ import { medianOf, type MedianResult } from '../../bench/src/median.js';
 import { loadSolve, runOnce } from '../../bench/src/runner.js';
 import type { RunResult } from '../../bench/src/schema.js';
 import { ModelPool } from '../model/client.js';
+import { FixtureMissingError } from '../model/replay.js';
 import type { ModelClient } from '../../harness/contract.js';
 
 import { changedFiles, changedLineCount, unifiedDiff } from './diff.js';
@@ -328,24 +329,40 @@ export async function runCandidateDetailed(
   let median: MedianResult | null = null;
 
   if (mechanical.cls === 'ok') {
-    const result = await deps.measure({
-      harnessDir: join(workspace, 'harness'),
-      harnessId: candidateHarnessId,
-      node: input.parentId,
-      benchId: deps.config.bench.id,
-      mode: input.mode,
-      repeats: input.runs,
-      seeds: claimedSeeds(candidateHarnessId, input.seed, input.runs),
-      allowGraded: deps.allowGraded,
-    });
-    median = result.median;
-    const runs = result.runs.map<ClaimedRun>((r) => ({
-      passed: r.passed, scoreBp: r.scoreBp, tokens: r.tokens, wallMs: r.wallMs,
-    }));
-    // A short or even batch cannot carry a median. It is recorded as no claim at all.
-    if (runs.length >= 3 && runs.length % 2 === 1) {
-      claimedRuns = runs;
-      claimedMedianBp = medianInt(runs.map((r) => r.scoreBp));
+    let result: MeasureResult | null = null;
+    try {
+      result = await deps.measure({
+        harnessDir: join(workspace, 'harness'),
+        harnessId: candidateHarnessId,
+        node: input.parentId,
+        benchId: deps.config.bench.id,
+        mode: input.mode,
+        repeats: input.runs,
+        seeds: claimedSeeds(candidateHarnessId, input.seed, input.runs),
+        allowGraded: deps.allowGraded,
+      });
+    } catch (err) {
+      // Replay holds recorded answers for known harness versions only. A new version
+      // passed every check but cannot be scored here, so record it unscored instead
+      // of dropping the experiment. It stays pending and can be scored live later.
+      if (!(err instanceof FixtureMissingError)) throw err;
+      mechanical = mechanicalFailure(
+        'not-scored',
+        'Replay has no recorded answers for this harness, so nobody could score it yet.\n'
+          + 'Score it live with --mode live and ANTHROPIC_API_KEY.\n\n'
+          + err.message,
+      );
+    }
+    if (result !== null) {
+      median = result.median;
+      const runs = result.runs.map<ClaimedRun>((r) => ({
+        passed: r.passed, scoreBp: r.scoreBp, tokens: r.tokens, wallMs: r.wallMs,
+      }));
+      // A short or even batch cannot carry a median. It is recorded as no claim at all.
+      if (runs.length >= 3 && runs.length % 2 === 1) {
+        claimedRuns = runs;
+        claimedMedianBp = medianInt(runs.map((r) => r.scoreBp));
+      }
     }
   }
 

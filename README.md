@@ -252,4 +252,5 @@ The live path has not been run on this tree yet.
 | `petri/SPEC.md` | The contract for hashing, signing, the acceptance rule and the CLI |
 | `petri/src/consensus/anchor.ts`, `petri/src/cli/anchor.ts` | The Hedera topic copy of every record |
 | `petri/src/trust/world.ts` | The World ID check after `petri verify` |
-| `lib/hedera/`, `lib/hedera2/`, `lib/hederaone/`, `pages/api/cannes2026/`, `docs/` | Earlier Hedera and World code for the web side. It builds. The web app does not use it yet. |
+| `petri/demo/verify-demo.sh` | The stage demo: verify, World ID (simulated), then Hedera |
+| `lib/hedera/`, `lib/hederaone/` | Earlier Hedera client and World AgentKit helpers for the web side. The web app does not use them yet. |

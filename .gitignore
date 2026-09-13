@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local skill cache (a nested git clone, not a submodule)
+.skill-cache/

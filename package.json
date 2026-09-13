@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "petri:snapshot": "node scripts/petri-snapshot.mjs"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.81.0",

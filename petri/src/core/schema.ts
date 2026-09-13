@@ -201,6 +201,8 @@ export type ProvenanceObservation = Pick<Provenance, 'digestHash' | 'promptHash'
 export const MECHANICAL_CLASSES = [
   'ok', 'malformed-proposal', 'patch-out-of-bounds', 'patch-too-large',
   'sandbox-violation', 'contract-violation', 'rule-violation', 'typecheck-failed',
+  // Passed every check, but replay has no recorded answers for it, so nobody could score it yet.
+  'not-scored',
 ] as const;
 export type MechanicalClass = (typeof MECHANICAL_CLASSES)[number];
 

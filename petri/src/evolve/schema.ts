@@ -56,7 +56,8 @@ export type Provenance = z.infer<typeof ProvenanceSchema>;
 /** 'ok', or the machine rejection that stopped the run. SPEC.md §13.4. */
 export const MechanicalResultSchema = z.strictObject({
   cls: z.enum(['ok', 'malformed-proposal', 'patch-out-of-bounds', 'patch-too-large',
-               'sandbox-violation', 'contract-violation', 'rule-violation', 'typecheck-failed']),
+               'sandbox-violation', 'contract-violation', 'rule-violation', 'typecheck-failed',
+               'not-scored']),
   command: z.string().max(400),   // '' when there was no command.
   exitCode: z.int(),              // 0 when cls is 'ok'.
   evidence: z.string().max(4000), // Verbatim tool output. '' when cls is 'ok'.

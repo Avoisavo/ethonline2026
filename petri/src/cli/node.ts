@@ -394,7 +394,7 @@ function registerSubmit(program: Command): void {
 }
 
 /** The digest of the loaded tree. The evolve guards read it. §12.2. */
-function digestOf(ctx: Ctx, view: TreeView): Digest {
+export function digestOf(ctx: Ctx, view: TreeView): Digest {
   const bench = loadBench(ctx);
   return buildDigest({
     nodes: [...view.nodes.values()],

@@ -14,6 +14,7 @@ import { registerInit, registerConfig } from './init.js';
 import { registerIdentity } from './identity.js';
 import { registerTopic } from './topic.js';
 import { registerNode } from './node.js';
+import { registerEvolve } from './evolve.js';
 import { registerVerify, registerStatus, registerPublish } from './verify.js';
 import { registerDigest, registerAreas } from './digest.js';
 import { registerExport } from './log.js';
@@ -42,6 +43,7 @@ export function buildProgram(): Command {
   registerIdentity(program);
   registerTopic(program);
   registerNode(program);
+  registerEvolve(program);
   registerVerify(program);
   registerStatus(program);
   registerPublish(program);

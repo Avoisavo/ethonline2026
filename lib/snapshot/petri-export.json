@@ -1,16 +1,20 @@
 {
   "protocol": "petri/export/1",
-  "generatedAt": 1789313219596,
+  "generatedAt": 1789463287037,
   "cli": "petri 0.1.0",
   "tree": "petri-main",
   "mode": "replay",
   "trust": "local-unverified",
   "ledger": {
     "kind": "local",
-    "lastSeq": 29,
-    "headHash": "3f9dc7c1a942e70e406f0ef60d5394b3db4c73013c6bab363d76c6df1dcb0633",
+    "lastSeq": 33,
+    "headHash": "a712b103821b0bd519292033ed56331a75c78db77323e4b9178dd73d3cef5c1a",
     "topicId": "",
     "network": ""
+  },
+  "hedera": {
+    "topicId": "0.0.10551476",
+    "network": "testnet"
   },
   "bench": {
     "id": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
@@ -31,13 +35,13 @@
       "pub": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
       "label": "",
       "note": "",
-      "reports": 5
+      "reports": 6
     },
     {
       "pub": "c339ad93bd4c21f0d910f2fbe94c1b226684fb354805faa12af3e3fbfcd69cd1",
       "label": "",
       "note": "",
-      "reports": 3
+      "reports": 4
     },
     {
       "pub": "f311696fcf644ed4b316ec9d1b2a4c9309b98a257adb822039d293f8c05365f5",
@@ -53,10 +57,10 @@
     }
   ],
   "stats": {
-    "total": 16,
-    "accepted": 3,
+    "total": 18,
+    "accepted": 4,
     "rejected": 2,
-    "pending": 11,
+    "pending": 12,
     "contested": 0,
     "withdrawn": 0,
     "superseded": 0,
@@ -64,6 +68,7 @@
     "tips": [
       "92dc9c49a6db19a0daaa70d8f87d06d0a9479d89f11ad6cc4897f89ed7e0dec2",
       "ea3b75324cc6328b38fdb5b2792345653b8e54c1088693e283d095c872a37cb4",
+      "ec1d39e6e7afc72d694c550becec6cd66f37781a0d4605d92b693b047225aa92",
       "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784"
     ]
   },
@@ -138,6 +143,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 1,
+        "txId": "0.0.7946371@1789462333.172019836",
+        "timestamp": "1789462342.520382104"
       }
     },
     {
@@ -234,6 +244,11 @@
       "verifications": [
         {
           "reportId": "6a70d532dcf4dffd3e74e097607c0a8c38e80b7f81b2e7de18cf4963b80c5265",
+          "hedera": {
+            "seq": 4,
+            "txId": "0.0.7946371@1789462341.768529419",
+            "timestamp": "1789462347.648264104"
+          },
           "runner": "f311696fcf644ed4b316ec9d1b2a4c9309b98a257adb822039d293f8c05365f5",
           "runnerLabel": "",
           "sig": "f5aa2cd5db5c8530ec1ad3b7999ba855cc6c04654b0a39dcf90e2c5c6d28c4d35b79994bd2924e39d2a0752351303e5738748a3f7f134d2398910b92c4bbb903",
@@ -353,6 +368,11 @@
         },
         {
           "reportId": "be7d3228453ce765c91c94fbe3108f89155ca809fd0db4909b8ba774e1925e39",
+          "hedera": {
+            "seq": 8,
+            "txId": "0.0.7946371@1789462347.208170407",
+            "timestamp": "1789462352.949885104"
+          },
           "runner": "f54f86ab9a47c63c3670d2e94211db893586d4f284309d11cf27cb89534ec63e",
           "runnerLabel": "",
           "sig": "3366e0d89f2fb3a0592aa3db5fc4431ca6d2998b9f3e22b3e99b234218b7dc30f789cac44d6def7005fab44466bbc66c4d760d150acfae734bbae2de4a91cf0f",
@@ -472,6 +492,11 @@
         },
         {
           "reportId": "c9e6085386e5f015e99eb3b4150506f09dfd422d39dff332b1e1ed8d55df9a8e",
+          "hedera": {
+            "seq": 3,
+            "txId": "0.0.7946371@1789462339.494989668",
+            "timestamp": "1789462346.014079104"
+          },
           "runner": "f54f86ab9a47c63c3670d2e94211db893586d4f284309d11cf27cb89534ec63e",
           "runnerLabel": "",
           "sig": "d6fbbe6a781bbf7fc47ee07b6512ca64026d64c3282b961a5c0a1912f6bc04aa3d55f7a963e80fc9ce5551eaa8adbde23d07c175ae3b45e89dbd14eb13bfd001",
@@ -594,6 +619,11 @@
         "medianTokens": 22831,
         "medianWallMs": 2081,
         "tokensPerTask": 1141
+      },
+      "hedera": {
+        "seq": 2,
+        "txId": "0.0.7946371@1789462337.787493872",
+        "timestamp": "1789462344.144377383"
       }
     },
     {
@@ -690,6 +720,11 @@
       "verifications": [
         {
           "reportId": "7e30c427cef1ade5cf4c6d27dcd9898d1211730fb5f1b0a85b1abb15c7c59a2f",
+          "hedera": {
+            "seq": 6,
+            "txId": "0.0.7946371@1789462343.490065460",
+            "timestamp": "1789462350.228325399"
+          },
           "runner": "f54f86ab9a47c63c3670d2e94211db893586d4f284309d11cf27cb89534ec63e",
           "runnerLabel": "",
           "sig": "923e4bb6be8b9661cdd5368d9f0501e120e1041ac44a8e1cd5e062a3dc589a06b557188849787f2d0294863dc50e32c56b12f7b11ef38ad2c8a3893559f0fe03",
@@ -809,6 +844,11 @@
         },
         {
           "reportId": "a50c99d6799916c4886c5a3bc7f083fcb7eb648d4927506d8d94ab73048c5c94",
+          "hedera": {
+            "seq": 7,
+            "txId": "0.0.7946371@1789462341.203299017",
+            "timestamp": "1789462351.607063104"
+          },
           "runner": "f311696fcf644ed4b316ec9d1b2a4c9309b98a257adb822039d293f8c05365f5",
           "runnerLabel": "",
           "sig": "d49f42cfc29db0d5ea61d59942bef7b796b071b93e087cebbc8fde30ee073aca5c5e9263d1f9c55eaf50dad86956d8c90b530ce5902ea5ce7aea6dcff1f70107",
@@ -931,6 +971,11 @@
         "medianTokens": 17276,
         "medianWallMs": 2155,
         "tokensPerTask": 863
+      },
+      "hedera": {
+        "seq": 5,
+        "txId": "0.0.7946371@1789462338.663363799",
+        "timestamp": "1789462349.184424345"
       }
     },
     {
@@ -942,7 +987,7 @@
       "parent": "0a54718ad85ba6b6dc69eee47cd110fc5dd99f76f920aebe7afdbc682e86dc73",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "7e00f08cbfd7bc984fa7d444520b44b11987682aa4bedc8be5ee1ee0df9ab95c",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Reading the task's test file gives the model the expected outputs, so the pass rate rises sharply.",
@@ -998,6 +1043,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 9,
+        "txId": "0.0.7946371@1789462349.573412175",
+        "timestamp": "1789462355.108905343"
       }
     },
     {
@@ -1009,7 +1059,7 @@
       "parent": "0a54718ad85ba6b6dc69eee47cd110fc5dd99f76f920aebe7afdbc682e86dc73",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "c5e65a081f83197bb68ae669441657b510f807659646d2f562d749cbc0171f4b",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Taking the last fenced block instead of the first raises the pass rate, because the model often explains first and puts the real answer last.",
@@ -1065,6 +1115,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 10,
+        "txId": "0.0.7946371@1789462348.538080663",
+        "timestamp": "1789462357.248329790"
       }
     },
     {
@@ -1076,7 +1131,7 @@
       "parent": "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "8b3aa30f36520bad084572e9232a8ec81afeb4b8b4014101526118d73bf7db7b",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "One repair call after an empty reply raises the pass rate, because some drafts come back with no code block.",
@@ -1132,6 +1187,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 11,
+        "txId": "0.0.7946371@1789462352.620259185",
+        "timestamp": "1789462358.448398069"
       }
     },
     {
@@ -1143,7 +1203,7 @@
       "parent": "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Letting solve() take task hints raises the pass rate, because the harness can pass the hints straight to the model.",
@@ -1199,6 +1259,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 12,
+        "txId": "0.0.7946371@1789462350.954393626",
+        "timestamp": "1789462360.700314500"
       }
     },
     {
@@ -1210,7 +1275,7 @@
       "parent": "872aaa3dce30e5b42bd93b1bd17a7bba5a8914966c5319749a0f459c7faa55e7",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Restoring the full signatures and the worked example undoes the regression, because the model needs the reply shape spelled out.",
@@ -1295,6 +1360,11 @@
       "verifications": [
         {
           "reportId": "386e72d8a3b60b53a387fde180dc1ddac79d0eaa7d045dc764838506692a2cea",
+          "hedera": {
+            "seq": 15,
+            "txId": "0.0.7946371@1789462354.596160818",
+            "timestamp": "1789462364.664500684"
+          },
           "runner": "c339ad93bd4c21f0d910f2fbe94c1b226684fb354805faa12af3e3fbfcd69cd1",
           "runnerLabel": "",
           "sig": "190fbb35d61a29c66556c2dc084457e221eb9909aa11ab0dcb4f4911f40af0c1b03495cf78b5132e6f5ca49f00294bb96fe04a98851e14b093476a2b950a9a0a",
@@ -1414,6 +1484,11 @@
         },
         {
           "reportId": "df6bf114362568d147394b1793452707602862e3cd931f40ba0c2dc7cf8ff444",
+          "hedera": {
+            "seq": 14,
+            "txId": "0.0.7946371@1789462353.626427031",
+            "timestamp": "1789462363.117466104"
+          },
           "runner": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
           "runnerLabel": "",
           "sig": "83f4b3aa385fe4f7350bab72edaa11268a009b4ca7b44cdffc4610e8e550f3e3d42683717a1dfdb94856a5f5fb06f5c8a2704355fde36df6d3cee2ca96aa6d0d",
@@ -1536,6 +1611,11 @@
         "medianTokens": 22831,
         "medianWallMs": 2091,
         "tokensPerTask": 1141
+      },
+      "hedera": {
+        "seq": 13,
+        "txId": "0.0.7946371@1789462353.552048217",
+        "timestamp": "1789462361.927071104"
       }
     },
     {
@@ -1547,7 +1627,7 @@
       "parent": "0a54718ad85ba6b6dc69eee47cd110fc5dd99f76f920aebe7afdbc682e86dc73",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "d0ecd6a8a7f1ea2e8e869abf070de6c25c805c4755b01090b71fb338d1832674",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Running each draft against a quick self-check before returning raises the pass rate, because wrong answers get caught early.",
@@ -1603,6 +1683,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 16,
+        "txId": "0.0.7946371@1789462357.535089892",
+        "timestamp": "1789462366.007628104"
       }
     },
     {
@@ -1614,7 +1699,7 @@
       "parent": "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "cae93abc875fa089361a562927039d5bd81adc8b4c74c8bfdbad29659ca793ea",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Asking for one exported symbol per model call raises the pass rate, because each call has a smaller job.",
@@ -1670,6 +1755,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 17,
+        "txId": "0.0.7946371@1789462358.287733722",
+        "timestamp": "1789462367.077378104"
       }
     },
     {
@@ -1681,7 +1771,7 @@
       "parent": "ea3b75324cc6328b38fdb5b2792345653b8e54c1088693e283d095c872a37cb4",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "3775f68ef1ba80c7deffe44090097823992d68314ec0fc3e05d834af8c245087",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Reserving half the token budget for a repair turn raises the pass rate, because a failed draft still has room to retry.",
@@ -1737,6 +1827,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 18,
+        "txId": "0.0.7946371@1789462362.648591815",
+        "timestamp": "1789462368.337637532"
       }
     },
     {
@@ -1748,7 +1843,7 @@
       "parent": "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "ec4b2d8e1cbff8280fcfb70452d6f4573081c5f046f8ccc8cf84d95953c1a18c",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Stating each instruction as a positive directive, what the model must do, instead of what it must not do, raises the pass rate and cuts reply tokens, because the model spends less effort reasoning about prohibitions.",
@@ -1804,6 +1899,11 @@
         "medianTokens": 0,
         "medianWallMs": 0,
         "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 19,
+        "txId": "0.0.7946371@1789462359.607603196",
+        "timestamp": "1789462369.296172104"
       }
     },
     {
@@ -1815,14 +1915,14 @@
       "parent": "0a54718ad85ba6b6dc69eee47cd110fc5dd99f76f920aebe7afdbc682e86dc73",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "An independent re-test confirms that full symbol signatures and one worked example raise the pass rate by at least 1000bp over the baseline.",
-      "status": "pending",
-      "statusCode": "INSUFFICIENT_VERIFICATIONS",
-      "statusReason": "1 of 2 verifications from distinct keys. The author's own runs never count.",
-      "verifiedDeltaBp": null,
+      "status": "accepted",
+      "statusCode": "WIN",
+      "statusReason": "2 verifications from distinct keys, every one at or above +1000bp. Worst delta +7000bp. This is a real improvement. The ledger is a local log, so one person can hold every key. Distinct keys are not proof of distinct people. Run `petri topic create` to publish.",
+      "verifiedDeltaBp": 7000,
       "disputed": false,
       "mode": "replay",
       "trust": "local-unverified",
@@ -1899,7 +1999,136 @@
       "diff": "--- a/harness/prompt.ts\n+++ b/harness/prompt.ts\n@@ -1,20 +1,23 @@\n /**\n  * LEVER: `prompt` — what the harness says to the model.\n  *\n- * V1 is the honest baseline, and it carries a real defect on purpose.\n- * `buildUserPrompt` sends the exported symbol NAMES only. It never sends the\n- * full signatures, so the model has to guess the argument order and the argument\n- * types. That headroom is deliberate. It is the first thing a reader should see.\n+ * V2 closes the two gaps V1 left open on purpose.\n  *\n+ *   - `buildUserPrompt` sends the FULL SIGNATURE of every exported symbol, not\n+ *     the bare name. The model no longer guesses the argument order, the\n+ *     argument types or the return shape. (motif: include-signatures)\n+ *   - `buildSystemPrompt` carries ONE worked example of the reply shape. The\n+ *     model no longer guesses the output format. (motif: one-worked-example)\n+ *\n+ * Both lines are paid for on every call of every task, so the example is kept to\n+ * four lines. The measured trade-off is more input tokens for a higher score.\n+ *\n  * Things a later node might try here:\n- *   - send `s.signature` as well as `s.name` (motif: include-signatures)\n- *   - add one worked example of the exact reply shape (motif: one-worked-example)\n  *   - state the output format as a hard rule instead of a sentence\n  *   - name the file extension and the module system in the system text\n  *   - reorder the parts, so the task text is last and stays closest to the answer\n- *\n- * Keep the system text short. It is sent on every call of every task, so each\n- * added line is paid for 20 times per run and 100 times per 5-run median.\n+ *   - drop the worked example again and keep only the signatures, to find out\n+ *     which of the two changes carried the win\n  */\n import type { TaskView } from './contract.js';\n import type { RetrievedContext } from './retrieval.js';\n@@ -24,6 +27,13 @@\n     'You are a JavaScript programmer.',\n     'Write complete, runnable ESM code.',\n     'Reply with one fenced code block and nothing else.',\n+    'Reply in exactly this shape:',\n+    '```js',\n+    'export function example(input, size) {',\n+    \"  if (!Array.isArray(input)) throw new TypeError('input must be an array');\",\n+    '  return [];',\n+    '}',\n+    '```',\n   ].join('\\n');\n }\n \n@@ -31,8 +41,11 @@\n   const parts: string[] = [];\n   parts.push(`Task: ${task.prompt}`);\n   parts.push(`Write the file ${task.entryFile}.`);\n-  // V1 sends symbol NAMES only. The full signatures are deliberately withheld.\n-  parts.push(`It must export: ${task.exportedSymbols.map((s) => s.name).join(', ')}.`);\n+  // V2 sends the FULL signature of every symbol. V1 sent the names only.\n+  parts.push(\n+    'It must export exactly these symbols, with exactly these signatures:\\n'\n+    + task.exportedSymbols.map((s) => `- ${s.signature}`).join('\\n'),\n+  );\n   if (task.constraints.length > 0) {\n     parts.push(`Constraints:\\n${task.constraints.map((c) => `- ${c}`).join('\\n')}`);\n   }\n",
       "verifications": [
         {
+          "reportId": "5c03aee45dce17b7ad9b32f3e4a51829320204dafe456d01e3208638bf5805a9",
+          "hedera": {
+            "seq": 31,
+            "txId": "0.0.7946371@1789462452.307233224",
+            "timestamp": "1789462460.987084433"
+          },
+          "runner": "c339ad93bd4c21f0d910f2fbe94c1b226684fb354805faa12af3e3fbfcd69cd1",
+          "runnerLabel": "",
+          "sig": "2b2abd739ca37c5fa3f1c6a83956e0866cab496653a7ebdceba3f61f198903e8e1033c5f3b94ee8531b8059b0b86daee9ef2f8f1589063fb7315ab1ce54f1b0e",
+          "counted": true,
+          "ignoredWhy": "",
+          "mode": "replay",
+          "runs": 5,
+          "clean": true,
+          "spreadBp": 0,
+          "deltaMedianBp": 7000,
+          "seedBase": "c53cc956a52e7ab368ce6e7c9d23d4991d75bdfe5ef663e00585e0bc385a085a",
+          "startedAt": 1789462436484,
+          "parent": {
+            "node": "0a54718ad85ba6b6dc69eee47cd110fc5dd99f76f920aebe7afdbc682e86dc73",
+            "medianBp": 2500,
+            "total": 20,
+            "runs": [
+              {
+                "passed": 5,
+                "resultId": "3c06ead46dd677311e9eb83fbf22e8df243dd5d4e439092f2382fb82308d57bb",
+                "scoreBp": 2500,
+                "seed": "e39c418cc0aebe3c986e1a4a49e2405992c68ee152084e578b861932e6737983",
+                "tokens": 17276,
+                "wallMs": 2184
+              },
+              {
+                "passed": 5,
+                "resultId": "3ad5e1662867824a76aba3e4434f406681b1dcbde03e1696428159f080559bec",
+                "scoreBp": 2500,
+                "seed": "7bbac3e8d9bc94ab9bb524eecc2f3141b9c749e2c6a0217994d43631147d8aac",
+                "tokens": 17276,
+                "wallMs": 2171
+              },
+              {
+                "passed": 5,
+                "resultId": "6f86936a7aa40d0c2cf86217630707e330108e07160d56a47e24dc0167334e68",
+                "scoreBp": 2500,
+                "seed": "0191ad15a3d212edeac7f5986c65f1d74f56d94f7290a180e3c32693c46e0a69",
+                "tokens": 17276,
+                "wallMs": 2162
+              },
+              {
+                "passed": 5,
+                "resultId": "63fab12b3c0f052c2eb0567e0d910f1f7e3059bdcf1e3caeca41ac693989f2fe",
+                "scoreBp": 2500,
+                "seed": "065ff20dd626871408fc0782a15c5b9e3a16489b68af25e74ef257f4ddfbbd4d",
+                "tokens": 17276,
+                "wallMs": 2285
+              },
+              {
+                "passed": 5,
+                "resultId": "5b764ad489ab350f22b7a016c9ff24241eeb3dbc935d9bdd9b35223c7af06c4b",
+                "scoreBp": 2500,
+                "seed": "05a0c390d0d41501e962e275d7c0c7da3b9753c801726cc41d92f2c467601f05",
+                "tokens": 17276,
+                "wallMs": 2229
+              }
+            ]
+          },
+          "candidate": {
+            "node": "ec1d39e6e7afc72d694c550becec6cd66f37781a0d4605d92b693b047225aa92",
+            "medianBp": 9500,
+            "total": 20,
+            "runs": [
+              {
+                "passed": 19,
+                "resultId": "cb188069d6777274d000b17a19b8c16f0233ae9dfa35eeda8cf015875d03f173",
+                "scoreBp": 9500,
+                "seed": "e39c418cc0aebe3c986e1a4a49e2405992c68ee152084e578b861932e6737983",
+                "tokens": 22831,
+                "wallMs": 2150
+              },
+              {
+                "passed": 19,
+                "resultId": "d04548296014d17f67232c3d3a5a7bd64ec79f4fb8a0d85786bb1114e05c3092",
+                "scoreBp": 9500,
+                "seed": "7bbac3e8d9bc94ab9bb524eecc2f3141b9c749e2c6a0217994d43631147d8aac",
+                "tokens": 22831,
+                "wallMs": 2209
+              },
+              {
+                "passed": 19,
+                "resultId": "611bff88c267ef01f34ed0aa7767cf3a4e3d3c3fac8268099d277accbf8c3262",
+                "scoreBp": 9500,
+                "seed": "0191ad15a3d212edeac7f5986c65f1d74f56d94f7290a180e3c32693c46e0a69",
+                "tokens": 22831,
+                "wallMs": 2093
+              },
+              {
+                "passed": 19,
+                "resultId": "1ab191b597ae80827be4fbba897c74c7dea281b302c714a6000e4e65e9f97a8b",
+                "scoreBp": 9500,
+                "seed": "065ff20dd626871408fc0782a15c5b9e3a16489b68af25e74ef257f4ddfbbd4d",
+                "tokens": 22831,
+                "wallMs": 2168
+              },
+              {
+                "passed": 19,
+                "resultId": "c57be146746712d582595f90ff9afbe2a3e28efe937ecd5c6a756f41a4119d5d",
+                "scoreBp": 9500,
+                "seed": "05a0c390d0d41501e962e275d7c0c7da3b9753c801726cc41d92f2c467601f05",
+                "tokens": 22831,
+                "wallMs": 2096
+              }
+            ]
+          },
+          "env": {
+            "arch": "arm64",
+            "benchId": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
+            "ledger": "local",
+            "mode": "replay",
+            "model": "none",
+            "nodeVersion": "v26.0.0",
+            "petriCommit": "6322927b7b449c3e3ce7e28d56278fd89e6e1042",
+            "platform": "darwin"
+          }
+        },
+        {
           "reportId": "ef1841a474630832630cbe4f5c415cc0844d56989beef3f3ba9295cb058ca9e6",
+          "hedera": {
+            "seq": 21,
+            "txId": "0.0.7946371@1789462362.083416274",
+            "timestamp": "1789462371.513317104"
+          },
           "runner": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
           "runnerLabel": "",
           "sig": "ba347908ebae966ff766fe142d00a74c013ed1fafd344022e008688a43485ef833cef88445a269f6f0c77444094ee36d0e8c5bfe727a5c251f05931917445a02",
@@ -2022,6 +2251,11 @@
         "medianTokens": 22831,
         "medianWallMs": 2162,
         "tokensPerTask": 1141
+      },
+      "hedera": {
+        "seq": 20,
+        "txId": "0.0.7946371@1789462363.755489833",
+        "timestamp": "1789462370.409836168"
       }
     },
     {
@@ -2033,7 +2267,7 @@
       "parent": "ea3b75324cc6328b38fdb5b2792345653b8e54c1088693e283d095c872a37cb4",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "6666aa69455499737042e676fd082a9978c92fb50ef7d845c1c63ef5e7018da3",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Removing the signatures and the worked example keeps the pass rate and cuts input tokens, because the task text already names every symbol.",
@@ -2118,6 +2352,11 @@
       "verifications": [
         {
           "reportId": "68edea2f1146e03339e60b7ef4abed7a4762ecf9a1c556f3090598658e530e13",
+          "hedera": {
+            "seq": 23,
+            "txId": "0.0.7946371@1789462365.709875799",
+            "timestamp": "1789462374.815316104"
+          },
           "runner": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
           "runnerLabel": "",
           "sig": "968adf41155df736f5f2aa5592588636cc04948fff69701d09acd8d12620e691b8487445c3ba3946dec17a2b625f85fe1437e8461fa5da8c2a37cdf136bee509",
@@ -2237,6 +2476,11 @@
         },
         {
           "reportId": "7a595d146342fe4a2e86394f8f66820b69032c7a9ffa114f750b626237184463",
+          "hedera": {
+            "seq": 24,
+            "txId": "0.0.7946371@1789462367.457487045",
+            "timestamp": "1789462377.108381104"
+          },
           "runner": "c339ad93bd4c21f0d910f2fbe94c1b226684fb354805faa12af3e3fbfcd69cd1",
           "runnerLabel": "",
           "sig": "4eeb024ee127f9e1d21fb65885bdb47bbe0f538aef5e9ceb0a45e6287ada3bec55a5b3849c8d6587ba489006d91e8f14f6fa731d5ad7e62d555e411f897b4d00",
@@ -2359,6 +2603,11 @@
         "medianTokens": 17276,
         "medianWallMs": 2223,
         "tokensPerTask": 863
+      },
+      "hedera": {
+        "seq": 22,
+        "txId": "0.0.7946371@1789462364.824757918",
+        "timestamp": "1789462372.967890104"
       }
     },
     {
@@ -2370,7 +2619,7 @@
       "parent": "f07e0c55c08f73d57441947f14e148ebce9c5a0913db1fb2aa80687327b88fba",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "Putting the signatures and the worked example back after the trim restores the pass rate, because the task text alone does not fix the reply shape.",
@@ -2455,6 +2704,11 @@
       "verifications": [
         {
           "reportId": "507e048500d5ed03b46fa30a7926682775d61f9f3bdde8ab13fbc6ba75ab17b3",
+          "hedera": {
+            "seq": 26,
+            "txId": "0.0.7946371@1789462369.062377030",
+            "timestamp": "1789462379.327009099"
+          },
           "runner": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
           "runnerLabel": "",
           "sig": "df51227eb44aeb0628562ac83eb4920ec50fae715ddec4fd914cd654d312ca6dfca59a85cbbf4182b0f155db60c4b8ca3ceec5bd00c3c4f918fc9cecce359007",
@@ -2574,6 +2828,11 @@
         },
         {
           "reportId": "efbd6e432132accfae1ee89942aeae95f18bf9127bfc8fae1cd907e61a1b212a",
+          "hedera": {
+            "seq": 27,
+            "txId": "0.0.7946371@1789462372.501104778",
+            "timestamp": "1789462380.697419104"
+          },
           "runner": "c339ad93bd4c21f0d910f2fbe94c1b226684fb354805faa12af3e3fbfcd69cd1",
           "runnerLabel": "",
           "sig": "43db36c94d8e2f6a86f78e2adc54b9233cc25805d0a33b39a23bace731e35e5385541608e9a4ef945766404ff3e9791ac2910f0135d714943db6a3ec7ce0c90d",
@@ -2696,6 +2955,11 @@
         "medianTokens": 22831,
         "medianWallMs": 2152,
         "tokensPerTask": 1141
+      },
+      "hedera": {
+        "seq": 25,
+        "txId": "0.0.7946371@1789462372.652354012",
+        "timestamp": "1789462378.127147104"
       }
     },
     {
@@ -2707,7 +2971,7 @@
       "parent": "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784",
       "tree": "petri-main",
       "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
-      "authorLabel": "",
+      "authorLabel": "mac",
       "harness": "6666aa69455499737042e676fd082a9978c92fb50ef7d845c1c63ef5e7018da3",
       "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
       "hypothesis": "A shorter prompt without the signatures and the reply-shape block keeps the pass rate and cuts tokens, because the model already writes fenced code.",
@@ -2792,6 +3056,11 @@
       "verifications": [
         {
           "reportId": "3f87b6b41080a43b755c8e6868d642668cde2331c1bf03fa6d6446cf02acb6f0",
+          "hedera": {
+            "seq": 29,
+            "txId": "0.0.7946371@1789462375.045874436",
+            "timestamp": "1789462383.217409192"
+          },
           "runner": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
           "runnerLabel": "",
           "sig": "d5fb7d8ab80b03b67d2abe9306c69a0916e57f8f3bdc5e65c119761226312b45e8b650b5ad4cee905b7b01ac9ba4096055b1b389e564e1c78f0724a6d8963801",
@@ -2914,6 +3183,311 @@
         "medianTokens": 17276,
         "medianWallMs": 2203,
         "tokensPerTask": 863
+      },
+      "hedera": {
+        "seq": 28,
+        "txId": "0.0.7946371@1789462372.321476968",
+        "timestamp": "1789462381.908357208"
+      }
+    },
+    {
+      "id": "c34b88dace5e7cbc28aa73fcfb884bc09ee34dc74f489d6e4363979fa586562a",
+      "short": "c34b88da",
+      "label": "n030",
+      "seq": 30,
+      "consensusNanos": "1789462417411000000",
+      "parent": "ecc7cdb0e5d18a743e12e4dd3c00ab99541f25f254512e77005d616ff3293784",
+      "tree": "petri-main",
+      "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
+      "authorLabel": "mac",
+      "harness": "ec4b2d8e1cbff8280fcfb70452d6f4573081c5f046f8ccc8cf84d95953c1a18c",
+      "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
+      "hypothesis": "Stating each rule as a positive directive raises the pass rate, because the model follows do-this instructions more reliably.",
+      "status": "pending",
+      "statusCode": "INSUFFICIENT_VERIFICATIONS",
+      "statusReason": "0 of 2 verifications from distinct keys. The author's own runs never count.",
+      "verifiedDeltaBp": null,
+      "disputed": false,
+      "mode": "replay",
+      "trust": "local-unverified",
+      "detail": {
+        "proposal": {
+          "hypothesis": "Stating each rule as a positive directive raises the pass rate, because the model follows do-this instructions more reliably.",
+          "falsifiedIf": "The median score does not rise by at least 1000bp.",
+          "primaryArea": "prompt",
+          "motif": "positive-instructions",
+          "metric": "score",
+          "predictedDelta": 1000,
+          "reasoning": "",
+          "whyNotUntested": null,
+          "contradicts": [],
+          "files": [
+            {
+              "path": "harness/prompt.ts",
+              "bytes": 1869
+            }
+          ]
+        },
+        "derivedAreas": [
+          "prompt"
+        ],
+        "areaMismatch": false,
+        "claimedRuns": [],
+        "claimedMedianBp": 0,
+        "parentHarness": "de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf",
+        "provenance": {
+          "source": "human",
+          "model": "none",
+          "promptHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "digestHash": "",
+          "seed": 7
+        },
+        "mechanical": {
+          "cls": "not-scored",
+          "command": "",
+          "exitCode": 1,
+          "evidence": "Replay has no recorded answers for this harness, so nobody could score it yet.\nScore it live with --mode live and ANTHROPIC_API_KEY.\n\npetri: no fixture for this harness, task and attempt.\n  harness  ec4b2d8e1cbff8280fcfb70452d6f4573081c5f046f8ccc8cf84d95953c1a18c\n  task     15-glob-match\n  attempt  0\n  path     /Users/jingyuan/Code/ethonline2026/petri/bench/fixtures/ec4b2d8e1cbff8280fcfb70452d6f4573081c5f046f8ccc8cf84d95953c1a18c/15-glob-match/0.json\n  Replay mode never calls a model, so it cannot invent this answer.\n  Fix it in one of three ways:\n    1. allow the published graded answers:  add --allow-graded\n    2. measure this harness live, which calls the model for real:\n       ANTHROPIC_API_KEY=... pnpm petri verify <nodeId> --mode live\n    3. measure a harness the fixture store already holds:\n    6666aa69455499737042e676fd082a9978c92fb50ef7d845c1c63ef5e7018da3\n    de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf"
+        }
+      },
+      "diff": "--- a/harness/prompt.ts\n+++ b/harness/prompt.ts\n@@ -1,23 +1,13 @@\n /**\n  * LEVER: `prompt` — what the harness says to the model.\n  *\n- * V2 closes the two gaps V1 left open on purpose.\n+ * V3 keeps V2's signatures and worked example, and changes HOW the rules are said.\n+ * Every instruction is a positive directive: what the model must do. V2 closed its\n+ * format rule with a prohibition (\"and nothing else\"). A prohibition makes the model\n+ * reason about what to avoid; a directive tells it exactly what to produce.\n  *\n- *   - `buildUserPrompt` sends the FULL SIGNATURE of every exported symbol, not\n- *     the bare name. The model no longer guesses the argument order, the\n- *     argument types or the return shape. (motif: include-signatures)\n- *   - `buildSystemPrompt` carries ONE worked example of the reply shape. The\n- *     model no longer guesses the output format. (motif: one-worked-example)\n- *\n- * Both lines are paid for on every call of every task, so the example is kept to\n- * four lines. The measured trade-off is more input tokens for a higher score.\n- *\n- * Things a later node might try here:\n- *   - state the output format as a hard rule instead of a sentence\n- *   - name the file extension and the module system in the system text\n- *   - reorder the parts, so the task text is last and stays closest to the answer\n- *   - drop the worked example again and keep only the signatures, to find out\n- *     which of the two changes carried the win\n+ * Hypothesis under test: positive directives raise the pass rate, make the code\n+ * safer (inputs are validated), and cut reply tokens.\n  */\n import type { TaskView } from './contract.js';\n import type { RetrievedContext } from './retrieval.js';\n@@ -26,8 +16,10 @@\n   return [\n     'You are a JavaScript programmer.',\n     'Write complete, runnable ESM code.',\n-    'Reply with one fenced code block and nothing else.',\n-    'Reply in exactly this shape:',\n+    'Put your whole answer inside one fenced js code block.',\n+    'Export every symbol the task names, with exactly the signature it gives.',\n+    'Validate each input, and throw a TypeError with a clear message when an input is wrong.',\n+    'Use this exact reply shape:',\n     '```js',\n     'export function example(input, size) {',\n     \"  if (!Array.isArray(input)) throw new TypeError('input must be an array');\",\n@@ -41,13 +33,12 @@\n   const parts: string[] = [];\n   parts.push(`Task: ${task.prompt}`);\n   parts.push(`Write the file ${task.entryFile}.`);\n-  // V2 sends the FULL signature of every symbol. V1 sent the names only.\n   parts.push(\n-    'It must export exactly these symbols, with exactly these signatures:\\n'\n+    'Export exactly these symbols, with exactly these signatures:\\n'\n     + task.exportedSymbols.map((s) => `- ${s.signature}`).join('\\n'),\n   );\n   if (task.constraints.length > 0) {\n-    parts.push(`Constraints:\\n${task.constraints.map((c) => `- ${c}`).join('\\n')}`);\n+    parts.push(`Follow these constraints:\\n${task.constraints.map((c) => `- ${c}`).join('\\n')}`);\n   }\n   for (const f of context.files) parts.push(`--- ${f.path} ---\\n${f.contents}`);\n   return parts.join('\\n\\n');\n",
+      "verifications": [],
+      "costs": {
+        "medianTokens": 0,
+        "medianWallMs": 0,
+        "tokensPerTask": 0
+      },
+      "hedera": {
+        "seq": 30,
+        "txId": "0.0.7946371@1789462414.107956513",
+        "timestamp": "1789462420.173366104"
+      }
+    },
+    {
+      "id": "ae0acec30289d8e77c37de7eb9febd602634ee617677541c6d9458a7348e8562",
+      "short": "ae0acec3",
+      "label": "n032",
+      "seq": 32,
+      "consensusNanos": "1789462503993000000",
+      "parent": "f07e0c55c08f73d57441947f14e148ebce9c5a0913db1fb2aa80687327b88fba",
+      "tree": "petri-main",
+      "author": "91b851346bf486649e66aac9581b68c0d126e0fbe3cd2a8d24a14079ee3a662a",
+      "authorLabel": "mac",
+      "harness": "de5f72c42e8b728c293ce666175c97f8bc15a29c3f6ca21ac14155b109c5bcbf",
+      "bench": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
+      "hypothesis": "Restoring the full symbol signatures and the worked example after the second trim raises the pass rate by at least 1000bp, because the trimmed prompt no longer fixes the reply shape.",
+      "status": "pending",
+      "statusCode": "INSUFFICIENT_VERIFICATIONS",
+      "statusReason": "1 of 2 verifications from distinct keys. The author's own runs never count.",
+      "verifiedDeltaBp": null,
+      "disputed": false,
+      "mode": "replay",
+      "trust": "local-unverified",
+      "detail": {
+        "proposal": {
+          "hypothesis": "Restoring the full symbol signatures and the worked example after the second trim raises the pass rate by at least 1000bp, because the trimmed prompt no longer fixes the reply shape.",
+          "falsifiedIf": "The median score does not rise by at least 1000bp.",
+          "primaryArea": "prompt",
+          "motif": "restore-signatures-retest",
+          "metric": "score",
+          "predictedDelta": 7000,
+          "reasoning": "",
+          "whyNotUntested": null,
+          "contradicts": [],
+          "files": [
+            {
+              "path": "harness/prompt.ts",
+              "bytes": 2281
+            }
+          ]
+        },
+        "derivedAreas": [
+          "prompt"
+        ],
+        "areaMismatch": false,
+        "claimedRuns": [
+          {
+            "passed": 19,
+            "scoreBp": 9500,
+            "tokens": 22831,
+            "wallMs": 2096
+          },
+          {
+            "passed": 19,
+            "scoreBp": 9500,
+            "tokens": 22831,
+            "wallMs": 2064
+          },
+          {
+            "passed": 19,
+            "scoreBp": 9500,
+            "tokens": 22831,
+            "wallMs": 2067
+          },
+          {
+            "passed": 19,
+            "scoreBp": 9500,
+            "tokens": 22831,
+            "wallMs": 2070
+          },
+          {
+            "passed": 19,
+            "scoreBp": 9500,
+            "tokens": 22831,
+            "wallMs": 2058
+          }
+        ],
+        "claimedMedianBp": 9500,
+        "parentHarness": "6666aa69455499737042e676fd082a9978c92fb50ef7d845c1c63ef5e7018da3",
+        "provenance": {
+          "source": "human",
+          "model": "none",
+          "promptHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "digestHash": "",
+          "seed": 7
+        },
+        "mechanical": {
+          "cls": "ok",
+          "command": "",
+          "exitCode": 0,
+          "evidence": ""
+        }
+      },
+      "diff": "--- a/harness/prompt.ts\n+++ b/harness/prompt.ts\n@@ -1,20 +1,23 @@\n /**\n  * LEVER: `prompt` — what the harness says to the model.\n  *\n- * V1 is the honest baseline, and it carries a real defect on purpose.\n- * `buildUserPrompt` sends the exported symbol NAMES only. It never sends the\n- * full signatures, so the model has to guess the argument order and the argument\n- * types. That headroom is deliberate. It is the first thing a reader should see.\n+ * V2 closes the two gaps V1 left open on purpose.\n  *\n+ *   - `buildUserPrompt` sends the FULL SIGNATURE of every exported symbol, not\n+ *     the bare name. The model no longer guesses the argument order, the\n+ *     argument types or the return shape. (motif: include-signatures)\n+ *   - `buildSystemPrompt` carries ONE worked example of the reply shape. The\n+ *     model no longer guesses the output format. (motif: one-worked-example)\n+ *\n+ * Both lines are paid for on every call of every task, so the example is kept to\n+ * four lines. The measured trade-off is more input tokens for a higher score.\n+ *\n  * Things a later node might try here:\n- *   - send `s.signature` as well as `s.name` (motif: include-signatures)\n- *   - add one worked example of the exact reply shape (motif: one-worked-example)\n  *   - state the output format as a hard rule instead of a sentence\n  *   - name the file extension and the module system in the system text\n  *   - reorder the parts, so the task text is last and stays closest to the answer\n- *\n- * Keep the system text short. It is sent on every call of every task, so each\n- * added line is paid for 20 times per run and 100 times per 5-run median.\n+ *   - drop the worked example again and keep only the signatures, to find out\n+ *     which of the two changes carried the win\n  */\n import type { TaskView } from './contract.js';\n import type { RetrievedContext } from './retrieval.js';\n@@ -24,6 +27,13 @@\n     'You are a JavaScript programmer.',\n     'Write complete, runnable ESM code.',\n     'Reply with one fenced code block and nothing else.',\n+    'Reply in exactly this shape:',\n+    '```js',\n+    'export function example(input, size) {',\n+    \"  if (!Array.isArray(input)) throw new TypeError('input must be an array');\",\n+    '  return [];',\n+    '}',\n+    '```',\n   ].join('\\n');\n }\n \n@@ -31,8 +41,11 @@\n   const parts: string[] = [];\n   parts.push(`Task: ${task.prompt}`);\n   parts.push(`Write the file ${task.entryFile}.`);\n-  // V1 sends symbol NAMES only. The full signatures are deliberately withheld.\n-  parts.push(`It must export: ${task.exportedSymbols.map((s) => s.name).join(', ')}.`);\n+  // V2 sends the FULL signature of every symbol. V1 sent the names only.\n+  parts.push(\n+    'It must export exactly these symbols, with exactly these signatures:\\n'\n+    + task.exportedSymbols.map((s) => `- ${s.signature}`).join('\\n'),\n+  );\n   if (task.constraints.length > 0) {\n     parts.push(`Constraints:\\n${task.constraints.map((c) => `- ${c}`).join('\\n')}`);\n   }\n",
+      "verifications": [
+        {
+          "reportId": "6bd70672cbe7b2bd607a3565e85eb33452e82001efde6d6c03ddde4f63d44771",
+          "hedera": {
+            "seq": 33,
+            "txId": "0.0.7946371@1789462521.114524472",
+            "timestamp": "1789462530.860350104"
+          },
+          "runner": "bf1ec730bef966c6b4442709b4c89a6502db8226276c13b4d00f239a8c00296a",
+          "runnerLabel": "",
+          "sig": "bf63e03bd66cb8665a743d5ecce3c226161754dc6eea67b11308f0fd3f73d48a6b64b72474a22e7d595fb3d59e5dda6038e7920ac6f5113e4d19a9a5a4d41609",
+          "counted": true,
+          "ignoredWhy": "",
+          "mode": "replay",
+          "runs": 5,
+          "clean": true,
+          "spreadBp": 0,
+          "deltaMedianBp": 7000,
+          "seedBase": "94294d2f4915c92782111a7c575fb451f6a962945a4789b347daa7dd27c5b95f",
+          "startedAt": 1789462506564,
+          "parent": {
+            "node": "f07e0c55c08f73d57441947f14e148ebce9c5a0913db1fb2aa80687327b88fba",
+            "medianBp": 2500,
+            "total": 20,
+            "runs": [
+              {
+                "passed": 5,
+                "resultId": "ed7c8b864f8eade8d8269ba6e1360d82b9e8c8a200d543b5496469e042ffa4b1",
+                "scoreBp": 2500,
+                "seed": "51629a239e39b98ef88f6a691a64d9a71f5c5145a2480c89d93f179514e087cd",
+                "tokens": 17276,
+                "wallMs": 2169
+              },
+              {
+                "passed": 5,
+                "resultId": "86eef8c13eae9865db27d9d2f99b4e5f5847e7d8cdda1166d1161269cc72d184",
+                "scoreBp": 2500,
+                "seed": "68d78abe54cb097b58b4ecf812e9528fb051c5bc95b0d7e7e8a7c16875f6344c",
+                "tokens": 17276,
+                "wallMs": 2174
+              },
+              {
+                "passed": 5,
+                "resultId": "2f9f3e6d2f5adb9508c373712ff7a6f758c0b2e021f82d238eb8d9117b22aa7f",
+                "scoreBp": 2500,
+                "seed": "234d97174e0e8d5aacf879b0fd5b5c3b7291a03164007d20da3d54b873b21047",
+                "tokens": 17276,
+                "wallMs": 2169
+              },
+              {
+                "passed": 5,
+                "resultId": "b3e23914c8dd609783dbca6112b92b618b1b4268b02c478008bf3a1c0f83bee6",
+                "scoreBp": 2500,
+                "seed": "9fe6c392a5649421c04110d02c54006a6801fbe7db90f6ad00d1562a40e80f23",
+                "tokens": 17276,
+                "wallMs": 2180
+              },
+              {
+                "passed": 5,
+                "resultId": "40587b96d79185a7e892e96ca23ad196ebe66fe58ad11eef2eaf80a6f99ea8e6",
+                "scoreBp": 2500,
+                "seed": "271692f1eac72f2c5ef47ae450ddebd2197e7be439f54288e5df86447e8be859",
+                "tokens": 17276,
+                "wallMs": 2185
+              }
+            ]
+          },
+          "candidate": {
+            "node": "ae0acec30289d8e77c37de7eb9febd602634ee617677541c6d9458a7348e8562",
+            "medianBp": 9500,
+            "total": 20,
+            "runs": [
+              {
+                "passed": 19,
+                "resultId": "1cb3c2f51c246a687c4f87cb379c4253869d9f98c78b08c8b52872ad8e5a29d4",
+                "scoreBp": 9500,
+                "seed": "51629a239e39b98ef88f6a691a64d9a71f5c5145a2480c89d93f179514e087cd",
+                "tokens": 22831,
+                "wallMs": 2075
+              },
+              {
+                "passed": 19,
+                "resultId": "1aa2ea65b414f6768fd79123dff702f7ab1f2944b9081381afed6ca9442e47cc",
+                "scoreBp": 9500,
+                "seed": "68d78abe54cb097b58b4ecf812e9528fb051c5bc95b0d7e7e8a7c16875f6344c",
+                "tokens": 22831,
+                "wallMs": 2081
+              },
+              {
+                "passed": 19,
+                "resultId": "03be7619306f6911ae8c2daaaa3a7eb9d03444aec5b4f9560c724aaf46544388",
+                "scoreBp": 9500,
+                "seed": "234d97174e0e8d5aacf879b0fd5b5c3b7291a03164007d20da3d54b873b21047",
+                "tokens": 22831,
+                "wallMs": 2064
+              },
+              {
+                "passed": 19,
+                "resultId": "e981a65e0a0b5e0e0d5ff07af83ee7bf01d57962732ba4a7a1e4871653f0c7b1",
+                "scoreBp": 9500,
+                "seed": "9fe6c392a5649421c04110d02c54006a6801fbe7db90f6ad00d1562a40e80f23",
+                "tokens": 22831,
+                "wallMs": 2077
+              },
+              {
+                "passed": 19,
+                "resultId": "b285688219aac184fda00862112bf695cc94773502b221e107688920c3e85efd",
+                "scoreBp": 9500,
+                "seed": "271692f1eac72f2c5ef47ae450ddebd2197e7be439f54288e5df86447e8be859",
+                "tokens": 22831,
+                "wallMs": 2088
+              }
+            ]
+          },
+          "env": {
+            "arch": "arm64",
+            "benchId": "5ec2e9b81f7ab85dc999eb179bd1d38ad7f89e4670706b2a6f14cd830b136ed2",
+            "ledger": "local",
+            "mode": "replay",
+            "model": "none",
+            "nodeVersion": "v26.0.0",
+            "petriCommit": "6322927b7b449c3e3ce7e28d56278fd89e6e1042",
+            "platform": "darwin"
+          }
+        }
+      ],
+      "costs": {
+        "medianTokens": 22831,
+        "medianWallMs": 2067,
+        "tokensPerTask": 1141
+      },
+      "hedera": {
+        "seq": 32,
+        "txId": "0.0.7946371@1789462498.682467328",
+        "timestamp": "1789462506.489866429"
       }
     }
   ]

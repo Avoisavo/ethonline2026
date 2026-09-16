@@ -23,10 +23,12 @@ interface Props {
   onSelect: (id: string) => void;
   benchTotal: number;
   minVerifications: number;
+  /** The statuses the layout is computed from. Defaults to `nodes`. */
+  layoutNodes?: ExportNode[];
 }
 
-export function LineageHero({ forest, nodes, selected, onSelect, benchTotal, minVerifications }: Props) {
-  const status = new Map(nodes.map((n) => [n.id, n.status]));
+export function LineageHero({ forest, nodes, selected, onSelect, benchTotal, minVerifications, layoutNodes }: Props) {
+  const status = new Map((layoutNodes ?? nodes).map((n) => [n.id, n.status]));
   const { slots, rows, maxDepth } = tidySlots(forest, (id) => status.get(id));
   const at = (id: string) => {
     const s = slots[id]!;
@@ -34,6 +36,27 @@ export function LineageHero({ forest, nodes, selected, onSelect, benchTotal, min
   };
   const width = PAD_X * 2 + maxDepth * COL + LABEL_W;
   const height = PAD_Y * 2 + (rows - 1) * ROW;
+
+  // Where a branch rejoins the accepted line.
+  //
+  // A version whose parent was rejected often restores an earlier harness: the
+  // files it runs hash to the same id as an accepted ancestor, so the two run
+  // exactly the same code. Walk up past the rejected parent to that ancestor.
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const restoredAncestor = (n: ExportNode): string => {
+    const seen = new Set<string>();
+    let cur = byId.get(n.parent);
+    while (cur !== undefined && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      if (cur.status === "accepted" && cur.harness === n.harness) return cur.id;
+      cur = byId.get(cur.parent);
+    }
+    return "";
+  };
+  const restores = nodes
+    .filter((n) => DEAD.has(byId.get(n.parent)?.status ?? "") && n.harness !== undefined)
+    .map((n) => ({ from: restoredAncestor(n), to: n.id }))
+    .filter((e) => e.from !== "" && slots[e.from] !== undefined && slots[e.to] !== undefined);
 
   const key = (e: KeyboardEvent, id: string) => {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(id); }
@@ -52,6 +75,21 @@ export function LineageHero({ forest, nodes, selected, onSelect, benchTotal, min
               d={`M${a.x + R} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - R} ${b.y}`} />
           );
         })}
+        {/* A version whose parent was rejected, drawn back to the accepted version whose
+            harness it restores. Same harness hash, so the two run exactly the same code.
+            The parent edge above is the record; this one shows where the branch rejoins. */}
+        {restores.map(({ from, to }) => {
+          const a = at(from);
+          const b = at(to);
+          const mx = (a.x + b.x) / 2;
+          return (
+            <path key={`r-${to}`} className="h-edge restore"
+              d={`M${a.x + R} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - R} ${b.y}`}>
+              <title>{`runs the same harness as ${from.slice(0, 8)}`}</title>
+            </path>
+          );
+        })}
+
         {/* The direction each change aimed for, on the line just before the child. */}
         {nodes.filter((n) => slots[n.parent] !== undefined && slots[n.id] !== undefined).map((n) => {
           const b = at(n.id);

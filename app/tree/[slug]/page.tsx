@@ -4,6 +4,7 @@ import { buildPanels } from "@/components/InfoPanels";
 import { Panels } from "@/components/Panels";
 import { Stats } from "@/components/Stats";
 import { TreeWorkspace } from "@/components/TreeWorkspace";
+import { LiveRefresh } from "@/components/LiveRefresh";
 import { buildForest } from "@/lib/layout";
 import { parseSlug } from "@/lib/catalog";
 import { findTree, loadTreeEntry } from "@/lib/trees";
@@ -65,16 +66,19 @@ export default async function TreePage({ params, searchParams }: {
             {d.nodes.length === 0 ? (
               <p className="empty">The tree is empty. Run <code>pnpm petri init</code> in petri/.</p>
             ) : (
+              <><LiveRefresh />
               <TreeWorkspace
                 nodes={d.nodes}
                 forest={buildForest(d.nodes)}
                 initial={d.stats.head || d.nodes[d.nodes.length - 1]!.id}
                 minVerifications={d.policy.minVerifications}
                 benchTotal={d.bench.total}
+                hedera={d.hedera ?? null}
                 initialView={view === "stats" ? "stats" : "tree"}
                 stats={<Stats d={d} />}
                 info={<Panels panels={buildPanels(d, load.digest)} />}
               />
+              </>
             )}
           </>
         );

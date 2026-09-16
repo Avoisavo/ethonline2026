@@ -16,9 +16,11 @@ interface Props {
   onSelect: (id: string) => void;
   /** The Hedera topic that holds a copy of every record. */
   hedera?: HederaTopic | null;
+  /** Called when the verify command is copied. See TreeWorkspace. */
+  onVerifyCopied?: () => void;
 }
 
-export function NodePanel({ node, parent, nodes, minVerifications, benchTotal, onSelect, hedera = null }: Props) {
+export function NodePanel({ node, parent, nodes, minVerifications, benchTotal, onSelect, hedera = null, onVerifyCopied }: Props) {
   const p = node.detail.proposal;
   const c = counted(node);
   const ig = ignored(node);
@@ -126,7 +128,7 @@ export function NodePanel({ node, parent, nodes, minVerifications, benchTotal, o
 
       <Fork parentId={node.short} area={p.primaryArea} />
 
-      <CheckIt short={node.short} hedera={hedera} scored={!isBlocked(node)} />
+      <CheckIt short={node.short} hedera={hedera} scored={!isBlocked(node)} onVerifyCopied={onVerifyCopied} />
 
       {node.diff.trim() && (
         <details className="np-block diff">
@@ -179,7 +181,7 @@ const CHECK_STEPS = (short: string, hasTopic: boolean, scored: boolean): { what:
   },
 ];
 
-function CheckIt({ short, hedera, scored }: { short: string; hedera: HederaTopic | null; scored: boolean }) {
+function CheckIt({ short, hedera, scored, onVerifyCopied }: { short: string; hedera: HederaTopic | null; scored: boolean; onVerifyCopied?: () => void }) {
   const [copied, setCopied] = useState("");
   const steps = CHECK_STEPS(short, hedera !== null, scored);
   return (
@@ -194,7 +196,11 @@ function CheckIt({ short, hedera, scored }: { short: string; hedera: HederaTopic
             {s.cmds.map((cmd) => (
               <div className="checkit-cmd" key={cmd}>
                 <code>{cmd}</code>
-                <button type="button" className="btn btn-sm" onClick={() => { void navigator.clipboard?.writeText(cmd); setCopied(cmd); }}>
+                <button type="button" className="btn btn-sm" onClick={() => {
+                  void navigator.clipboard?.writeText(cmd);
+                  setCopied(cmd);
+                  if (cmd.includes("petri verify")) onVerifyCopied?.();
+                }}>
                   {copied === cmd ? "Copied" : "Copy"}
                 </button>
               </div>

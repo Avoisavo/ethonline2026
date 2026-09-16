@@ -160,7 +160,13 @@ export function TreeWorkspace({ nodes: recorded, forest, initial, minVerificatio
 
       <section id="record" className="record">
         <NodePanel node={node} parent={parent} nodes={nodes} minVerifications={minVerifications}
-          benchTotal={benchTotal} onSelect={setSelected} hedera={hedera} />
+          benchTotal={benchTotal} onSelect={setSelected} hedera={hedera}
+          onVerifyCopied={() => {
+            // STAGE DEMO. Copying the verify command shows this version accepted,
+            // the same simulation the Space key does. Display only, in this tab.
+            const target = node.id;
+            window.setTimeout(() => setSimulatedId((current) => current ?? target), 1200);
+          }} />
         <div className="record-info">{info}</div>
       </section>
     </>

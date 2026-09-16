@@ -337,3 +337,59 @@ pre.digest-error { color: var(--fail); white-space: pre-wrap; }
 
 .c-climb { stroke-width: 1.6; opacity: .55; }
 .c-goal { fill: var(--ink-mid); font-weight: 500; }
+
+/* ---- selfie check demo ---- */
+.selfie-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.selfie-card { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.selfie-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.selfie-title h2 { font-size: 15px; }
+.selfie-facts, .selfie-hash { margin: 0; display: grid; gap: 8px; }
+.selfie-facts { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.selfie-facts div, .selfie-hash div { background: var(--sunk); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.selfie-facts dt, .selfie-hash dt { font-size: 11.5px; color: var(--ink-faint); }
+.selfie-facts dd, .selfie-hash dd { margin: 2px 0 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.selfie-facts small { color: var(--ink-faint); font-size: 11.5px; }
+.selfie-hash code { overflow-wrap: anywhere; font-size: 12px; }
+.selfie-hyp { color: var(--ink-mid); font-size: 13px; }
+.selfie-face { position: relative; width: 132px; height: 132px; margin: 6px auto 0; display: grid; place-items: center; }
+.selfie-ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--rule); }
+.selfie-glyph { font-size: 44px; line-height: 1; color: var(--ink-mid); }
+.s-scanning .selfie-ring, .s-sending .selfie-ring { border-color: var(--pass-soft); border-top-color: var(--pass); animation: selfie-spin 0.9s linear infinite; }
+.s-done .selfie-ring { border-color: var(--pass); background: var(--pass-soft); }
+.s-done .selfie-glyph { color: var(--pass); }
+.s-error .selfie-ring { border-color: var(--fail); background: var(--fail-soft); }
+.s-error .selfie-glyph { color: var(--fail); }
+@keyframes selfie-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .s-scanning .selfie-ring, .s-sending .selfie-ring { animation: none; } }
+.selfie-state { text-align: center; font-weight: 500; }
+.selfie-btn { align-self: center; }
+.selfie-btn kbd { font-family: var(--f-mono), ui-monospace, monospace; font-size: 11px; border: 1px solid color-mix(in srgb, var(--paper) 40%, transparent); border-radius: 4px; padding: 1px 5px; }
+.selfie-note { font-size: 12px; text-align: center; }
+.selfie-error { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--fail-soft); color: var(--fail); border-radius: 8px; padding: 10px; }
+.selfie-links { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---- hedera links ---- */
+.np-head { flex-wrap: wrap; }
+.hs-id { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--pass) 45%, transparent); text-underline-offset: 3px; }
+.hs-id:hover { color: var(--pass); text-decoration-color: var(--pass); }
+.hs-chip { margin-left: auto; font-family: var(--f-mono), ui-monospace, monospace; font-size: 11px; line-height: 1; padding: 4px 7px; border-radius: 6px; text-decoration: none; color: var(--pass); background: var(--pass-soft); border: 1px solid color-mix(in srgb, var(--pass) 28%, transparent); white-space: nowrap; }
+.hs-chip:hover { border-color: var(--pass); }
+.hs-chip-off { color: var(--ink-faint); background: var(--sunk); border-color: var(--rule); }
+
+/* ---- check it yourself ---- */
+.checkit-steps { margin: 12px 0 0; padding: 0; list-style: none; counter-reset: checkit; display: grid; gap: 14px; }
+.checkit-steps li { counter-increment: checkit; position: relative; padding-left: 28px; }
+.checkit-steps li::before { content: counter(checkit); position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; background: var(--sunk); border: 1px solid var(--rule); color: var(--ink-mid); font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+.checkit-what { font-weight: 600; }
+.checkit-steps .muted { font-size: 12.5px; }
+.checkit-cmd { margin-top: 6px; display: flex; align-items: center; gap: 8px; background: var(--sunk); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 7px 8px 7px 10px; }
+.checkit-cmd code { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.checkit-cmd .btn { height: 26px; padding: 0 10px; font-size: 12px; flex: none; }
+
+/* ---- live update toast ---- */
+.live-toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20; font-size: 12.5px; font-weight: 500; color: var(--pass); background: var(--pass-soft); border: 1px solid color-mix(in srgb, var(--pass) 30%, transparent); border-radius: 999px; padding: 7px 14px; box-shadow: var(--shadow); animation: toast-in .18s ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .live-toast { animation: none; } }
+
+/* A branch rejoining the accepted line: same harness, after a rejected parent. */
+.h-edge.restore { stroke: var(--pass); stroke-dasharray: 2 5; stroke-linecap: round; opacity: .5; }

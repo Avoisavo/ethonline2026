@@ -213,10 +213,11 @@ export function TreeWorkspace({ nodes: recorded, forest, initial, minVerificatio
         if (after >= 0) {
           const verifs = data.messages.filter((m) => (m.body as { type?: string }).type === "VerificationSigned");
           if (verifs.length > 0 && !stopped) {
+            const last = verifs[verifs.length - 1]!;
             setArrived((prev) => [...prev, ...verifs]);
             setBeforeUpdate(false);
-            setToast(`New verification on Hedera #${verifs[verifs.length - 1]!.seq}`);
-            window.setTimeout(() => { if (!stopped) setToast(null); }, 3500);
+            setToast(`Verified by another key — on Hedera #${last.seq}`);
+            window.setTimeout(() => { if (!stopped) setToast(null); }, 4000);
           }
         }
         after = Math.max(after, data.latest);
@@ -229,12 +230,9 @@ export function TreeWorkspace({ nodes: recorded, forest, initial, minVerificatio
     return () => { stopped = true; window.clearInterval(timer); };
   }, [hedera]);
 
-  // LiveRefresh fires this when the log on disk changes, so a real verify shows through.
-  useEffect(() => {
-    const onUpdate = (): void => setBeforeUpdate(false);
-    window.addEventListener("petri:updated", onUpdate);
-    return () => window.removeEventListener("petri:updated", onUpdate);
-  }, []);
+  // The demo version changes colour only when its record is on Hedera, never on
+  // the local file change alone. LiveRefresh announces the file change; the
+  // Hedera watcher below makes the switch.
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

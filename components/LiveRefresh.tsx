@@ -26,8 +26,9 @@ export function LiveRefresh({ everyMs = 1500 }: { everyMs?: number }) {
         if (version !== seen) {
           seen = version;
           setChanged(true);
-          // Tells the tree to stop drawing the demo version as pending.
-          window.dispatchEvent(new CustomEvent("petri:updated"));
+          // Tells the tree a record was written. The demo version still waits
+          // for the record to reach Hedera before it changes colour.
+          window.dispatchEvent(new CustomEvent("petri:detected"));
           router.refresh();
           setTimeout(() => { if (!stopped) setChanged(false); }, 2600);
         }
@@ -41,5 +42,5 @@ export function LiveRefresh({ everyMs = 1500 }: { everyMs?: number }) {
     return () => { stopped = true; clearInterval(timer); };
   }, [router, everyMs]);
 
-  return changed ? <div className="live-toast" role="status">New record — tree updated</div> : null;
+  return changed ? <div className="live-toast" role="status">Verification detected — waiting for Hedera…</div> : null;
 }

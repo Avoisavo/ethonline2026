@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "petri:snapshot": "node scripts/petri-snapshot.mjs"
+    "petri:snapshot": "node scripts/petri-snapshot.mjs",
+    "petri": "pnpm --dir petri petri",
+    "demo": "bash petri/demo/verify-demo.sh",
+    "demo:full": "bash petri/demo/verify-full.sh"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.81.0",

@@ -12,6 +12,11 @@ Each version in the tree holds three things:
 A version is accepted only when 2 other keys re-run it and agree. Rejected versions are
 never deleted, so the next agent reads them and does not try the same idea again.
 
+
+![Petri, explained: the tree, the problem, the mechanism, the record, the loop and the limits](docs/petri-overview.png)
+
+*How Petri works, on one page. The numbers in this explainer are examples. The real recorded tree and its scores are further down, and live at [ethonline2026-two.vercel.app](https://ethonline2026-two.vercel.app/tree/coding--petri-harness-v1--claude-sonnet-5).*
+
 ---
 
 ## The problem

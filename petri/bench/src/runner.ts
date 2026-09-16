@@ -110,13 +110,37 @@ export async function runOnce(input: RunOnceInput): Promise<RunResult> {
 
   const startedAt = Date.now();
   const outcomes = new Map<string, TaskOutcome>();
-  // The seed fixes the order tasks run in. Two honest verifiers therefore run the
-  // same tasks in the same order. The result array is still ordered by task id.
-  for (const index of seededOrder(tasks.length, input.seed)) {
-    const task = tasks[index];
-    if (task === undefined) continue;
-    outcomes.set(task.id, await runTask(task, input));
-  }
+
+  // The seed fixes the order tasks are STARTED in, so two honest verifiers work
+  // through the same list in the same order. Several tasks run at once, because
+  // each one is its own pair of child processes and cannot see the others: the
+  // answer and the tests of one task decide its outcome alone. The result array
+  // is ordered by task id either way, so the score never depends on the timing.
+  const order = seededOrder(tasks.length, input.seed);
+  const lanes = Math.max(1, Math.min(taskConcurrency(), order.length));
+  let next = 0;
+  let failure: unknown = null;
+
+  const lane = async (): Promise<void> => {
+    for (;;) {
+      if (failure !== null) return;
+      const index = order[next];
+      next += 1;
+      if (index === undefined) return;
+      const task = tasks[index];
+      if (task === undefined) continue;
+      try {
+        outcomes.set(task.id, await runTask(task, input));
+      } catch (err) {
+        // The first failure wins. A Class B failure makes the median layer
+        // discard the whole attempt, so the other lanes stop as well.
+        failure ??= err;
+        return;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: lanes }, () => lane()));
+  if (failure !== null) throw failure;
 
   const taskOutcomes = tasks.map((task) => {
     const outcome = outcomes.get(task.id);
@@ -147,6 +171,17 @@ export async function runOnce(input: RunOnceInput): Promise<RunResult> {
     tampered: taskOutcomes.some((t) => t.outcome === 'tampered'),
     env: input.env,
   };
+}
+
+/**
+ * How many tasks run at once. PETRI_TASK_CONCURRENCY overrides it, and 1 gives
+ * the old one-at-a-time behaviour. It changes the wall clock only: every task
+ * runs in its own child process, and the tests decide the outcome.
+ */
+export function taskConcurrency(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = Number(env['PETRI_TASK_CONCURRENCY'] ?? '');
+  if (Number.isInteger(raw) && raw >= 1 && raw <= 32) return raw;
+  return 6;
 }
 
 function loadTasks(input: RunOnceInput): LoadedTask[] {

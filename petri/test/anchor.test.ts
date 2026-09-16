@@ -4,7 +4,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { anchorStatus, pushAnchors, readReceipts, type AnchorConfig, type AnchorSubmit } from '../src/consensus/anchor.js';
+import { anchorStatus, compareWithTopic, fetchTopicMessages, pushAnchors, readReceipts, type AnchorConfig, type AnchorSubmit } from '../src/consensus/anchor.js';
 import { anchorsPath, logPath, worldChecksPath } from '../src/store/paths.js';
 
 const cfg: AnchorConfig = { createdTx: '0.0.1@1.2', network: 'testnet', topicId: '0.0.777' };
@@ -82,4 +82,35 @@ test('a tree with no records and no receipts has nothing to send', () => {
   assert.equal(s.total, 0);
   assert.equal(s.pending.length, 0);
   assert.equal(anchorsPath(root).endsWith('anchors.jsonl'), true);
+});
+
+test('check: records that match the topic pass, and a missing or altered message is caught', async () => {
+  const root = treeWith(['{"seq":1}', '{"seq":2}', '{"seq":3}']);
+  const topic = fakeTopic();
+  await pushAnchors(root, cfg, topic.submit);
+  const messages = topic.sent.map((line, i) => ({
+    seq: i + 1, bytes: Buffer.from(line, 'utf8'), consensusTimestamp: '1789462329.1', runningHash: 'ab',
+  }));
+  const ok = compareWithTopic(root, messages);
+  assert.equal(ok.matched, 3);
+  assert.equal(ok.missing.length + ok.differ.length + ok.changedLocally.length, 0);
+
+  const tampered = [messages[0]!, { ...messages[1]!, bytes: Buffer.from('{"seq":2,"score":10000}') }];
+  const bad = compareWithTopic(root, tampered);
+  assert.deepEqual(bad.differ.map((r) => r.hcsSeq), [2]);
+  assert.deepEqual(bad.missing.map((r) => r.hcsSeq), [3]);
+});
+
+test('check: chunks from the mirror node are joined back into one record', async () => {
+  const pages = [{
+    messages: [
+      { sequence_number: 1, consensus_timestamp: '1.1', message: Buffer.from('{"a":').toString('base64'), running_hash: Buffer.from('01', 'hex').toString('base64'), chunk_info: { number: 1, total: 2 } },
+      { sequence_number: 2, consensus_timestamp: '1.2', message: Buffer.from('1}').toString('base64'), running_hash: Buffer.from('02', 'hex').toString('base64'), chunk_info: { number: 2, total: 2 } },
+    ],
+    links: { next: null },
+  }];
+  const got = await fetchTopicMessages(cfg, async () => ({ ok: true, status: 200, json: async () => pages.shift() }));
+  assert.equal(got.length, 1);
+  assert.equal(got[0]!.bytes.toString('utf8'), '{"a":1}');
+  assert.equal(got[0]!.seq, 2);
 });

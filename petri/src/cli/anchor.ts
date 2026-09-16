@@ -9,7 +9,7 @@ import type { Command } from 'commander';
 
 import { createTopic, type HederaNetwork } from '../consensus/hedera.js';
 import {
-  anchorStatus, hashscanTopicUrl, hcsSubmitter, loadAnchorConfig, mirrorMessagesUrl,
+  anchorStatus, compareWithTopic, fetchTopicMessages, saveAnchorTimes, syncAnchorTimes, hashscanTopicUrl, hcsSubmitter, loadAnchorConfig, mirrorMessagesUrl,
   pushAnchors, saveAnchorConfig, type AnchorConfig, type AnchorReceipt,
 } from '../consensus/anchor.js';
 import { EXIT, fail } from './exit.js';
@@ -45,6 +45,7 @@ function printReceipts(cfg: AnchorConfig, receipts: readonly AnchorReceipt[]): v
 export function registerAnchor(program: Command): void {
   const group = program
     .command('anchor')
+    .alias('hedera')
     .description('copy every log record and World ID check to a public Hedera topic');
 
   group
@@ -93,6 +94,9 @@ export function registerAnchor(program: Command): void {
       }
       if (!hasOperator()) fail(EXIT.ENVIRONMENT, 'set HEDERA_OPERATOR_ID and HEDERA_OPERATOR_KEY first.');
       const result = await push(g.root, cfg);
+      if (result.pushed.length > 0) {
+        await syncAnchorTimes(g.root, cfg, Math.max(...result.pushed.map((x) => x.hcsSeq))).catch(() => false);
+      }
       const after = anchorStatus(g.root);
       if (g.json) { emitJson(ctx, { topicId: cfg.topicId, pushed: result.pushed, anchored: after.anchored, total: after.total, error: result.error }); }
       else {
@@ -102,6 +106,61 @@ export function registerAnchor(program: Command): void {
         out(`hashscan  ${hashscanTopicUrl(cfg)}`);
       }
       if (result.error !== null) fail(EXIT.NETWORK, result.error);
+    });
+
+  group
+    .command('check')
+    .description('download the public topic and compare every record with this machine')
+    .action(async (_opts: unknown, cmd: Command) => {
+      const g = globalOptions(cmd);
+      const ctx = openCtx(cmd);
+      const cfg = loadAnchorConfig(g.root);
+      if (cfg === null) fail(EXIT.NOT_FOUND, 'no topic yet. Run `petri anchor create` first.');
+      let messages;
+      try {
+        messages = await fetchTopicMessages(cfg);
+      } catch (err) {
+        fail(EXIT.NETWORK, (err as Error).message);
+      }
+      saveAnchorTimes(g.root, messages);
+      const r = compareWithTopic(g.root, messages);
+      const bad = r.missing.length + r.differ.length + r.changedLocally.length;
+      if (g.json) {
+        emitJson(ctx, {
+          topic: cfg.topicId, onTopic: messages.length, receipts: r.receipts, matched: r.matched,
+          missing: r.missing.map((x) => x.hcsSeq), differ: r.differ.map((x) => x.hcsSeq),
+          changedLocally: r.changedLocally.map((x) => `${x.source}:${x.localSeq}`), notSent: r.notSent,
+        });
+        if (bad > 0) process.exitCode = EXIT.INTEGRITY;
+        return;
+      }
+      out(`topic      ${cfg.topicId}  (${cfg.network})  read from the public mirror node, no key used`);
+      out(`on topic   ${messages.length} messages`);
+      out(`matched    ${r.matched} of ${r.receipts} records, byte for byte (sha256 of each line)`);
+      if (r.missing.length > 0) out(`MISSING    ${r.missing.length} receipts have no message on the topic: seq ${r.missing.map((x) => x.hcsSeq).join(', ')}`);
+      if (r.differ.length > 0) out(`DIFFERENT  ${r.differ.length} messages are not the bytes this machine sent: seq ${r.differ.map((x) => x.hcsSeq).join(', ')}`);
+      if (r.changedLocally.length > 0) out(`CHANGED    ${r.changedLocally.length} local lines were edited after they reached Hedera`);
+      if (r.notSent > 0) out(`not sent   ${r.notSent} new records. Run \`petri anchor push\`.`);
+      out('');
+      out('latest records on Hedera');
+      for (const { receipt, message } of r.matches.slice(-3)) {
+        let what: string = receipt.source;
+        try {
+          const line = JSON.parse(message.bytes.toString('utf8')) as { envelope?: { body?: { type?: string; node?: string } }; kind?: string; node?: string };
+          const body = line.envelope?.body;
+          what = body?.type !== undefined ? `${body.type} ${String(body.node ?? '').slice(0, 8)}` : `${line.kind ?? receipt.source} ${String(line.node ?? '').slice(0, 8)}`;
+        } catch { /* show the source only */ }
+        const seconds = Number(message.consensusTimestamp.split('.')[0]);
+        out(`  #${String(message.seq).padEnd(4)} ${what}`);
+        out(`        time          ${new Date(seconds * 1000).toISOString()}`);
+        out(`        running hash  ${message.runningHash}`);
+      }
+      out('');
+      out(bad === 0
+        ? 'OK  Every record on this machine is on Hedera, unchanged.'
+        : 'FAIL  The copy on Hedera and this machine disagree. The topic is the original.');
+      out(`hashscan   ${hashscanTopicUrl(cfg)}`);
+      if (bad > 0) process.exitCode = EXIT.INTEGRITY;
     });
 
   group
@@ -156,6 +215,13 @@ export async function autoAnchor(argv: readonly string[], root: string): Promise
   try {
     const result = await push(root, cfg);
     process.stderr.write(`hedera     sent ${result.pushed.length} records to ${cfg.topicId}\n`);
+    for (const r of result.pushed) {
+      process.stderr.write(`           ${r.source} line ${r.localSeq} -> topic seq ${r.hcsSeq}  tx ${r.txId}\n`);
+    }
+    if (result.pushed.length > 0) {
+      process.stderr.write(`hashscan   ${hashscanTopicUrl(cfg)}\n`);
+      await syncAnchorTimes(root, cfg, Math.max(...result.pushed.map((x) => x.hcsSeq))).catch(() => false);
+    }
     if (result.error !== null) process.stderr.write(`petri: ${result.error}\n`);
   } catch (err) {
     process.stderr.write(`petri: the records were not sent to Hedera: ${(err as Error).message}\n`);

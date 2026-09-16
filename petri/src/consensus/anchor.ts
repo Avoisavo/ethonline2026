@@ -28,7 +28,7 @@ import { z } from 'zod';
 import { AccountId } from '../config.js';
 import { canonicalJson, sha256Hex } from '../core/canonical.js';
 import { Hex64 } from '../core/schema.js';
-import { anchorConfigPath, anchorsPath, logPath, worldChecksPath } from '../store/paths.js';
+import { anchorConfigPath, anchorsPath, anchorTimesPath, logPath, worldChecksPath } from '../store/paths.js';
 import { HederaError, makeClient, MIRROR_REST, type HederaNetwork } from './hedera.js';
 
 /**
@@ -214,4 +214,131 @@ export function hcsSubmitter(
     };
   };
   return { submit, close: () => client.close() };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Check: compare the public topic with this machine                           */
+/* -------------------------------------------------------------------------- */
+
+/** One message as the public mirror node returns it, chunks joined. */
+export interface TopicMessage {
+  seq: number;
+  bytes: Buffer;
+  consensusTimestamp: string;
+  runningHash: string;
+}
+
+type MirrorPage = {
+  messages?: {
+    sequence_number: number;
+    consensus_timestamp: string;
+    message: string;
+    running_hash: string;
+    chunk_info?: { number: number; total: number } | null;
+  }[];
+  links?: { next?: string | null };
+};
+
+/**
+ * Read every message on the topic from the public mirror node. No key and no
+ * account are needed, so anyone can run this. A message split into chunks is
+ * joined back in order and reported under its last sequence number.
+ */
+export async function fetchTopicMessages(
+  cfg: AnchorConfig,
+  fetchFn: (url: string) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> = fetch,
+): Promise<TopicMessage[]> {
+  const host = MIRROR_REST[cfg.network];
+  let url: string | null = `${host}/api/v1/topics/${cfg.topicId}/messages?limit=100&order=asc`;
+  const out: TopicMessage[] = [];
+  let parts: Buffer[] = [];
+  while (url !== null) {
+    const res = await fetchFn(url);
+    if (!res.ok) throw new HederaError(`petri: the mirror node answered HTTP ${res.status} for ${url}`);
+    const page = (await res.json()) as MirrorPage;
+    for (const m of page.messages ?? []) {
+      parts.push(Buffer.from(m.message, 'base64'));
+      const total = m.chunk_info?.total ?? 1;
+      const number = m.chunk_info?.number ?? 1;
+      if (number < total) continue;
+      out.push({
+        seq: m.sequence_number,
+        bytes: Buffer.concat(parts),
+        consensusTimestamp: m.consensus_timestamp,
+        runningHash: Buffer.from(m.running_hash, 'base64').toString('hex'),
+      });
+      parts = [];
+    }
+    const next = page.links?.next ?? null;
+    url = next === null ? null : `${host}${next}`;
+  }
+  return out;
+}
+
+export interface CheckResult {
+  receipts: number;
+  matched: number;
+  /** A receipt whose message the mirror node does not hold. */
+  missing: AnchorReceipt[];
+  /** A message whose bytes are not the bytes the receipt recorded. */
+  differ: AnchorReceipt[];
+  /** A local line that changed after it reached Hedera. */
+  changedLocally: AnchorItem[];
+  /** Lines on this machine with no receipt yet. */
+  notSent: number;
+  /** Matched records, newest last, for display. */
+  matches: { receipt: AnchorReceipt; message: TopicMessage }[];
+}
+
+/** Compare every receipt with the topic, and every local line with its receipt. */
+export function compareWithTopic(root: string, messages: readonly TopicMessage[]): CheckResult {
+  const bySeq = new Map(messages.map((m) => [m.seq, m]));
+  const status = anchorStatus(root);
+  const result: CheckResult = {
+    receipts: 0, matched: 0, missing: [], differ: [],
+    changedLocally: status.changed, notSent: status.pending.length, matches: [],
+  };
+  for (const receipt of readReceipts(root)) {
+    result.receipts += 1;
+    const message = bySeq.get(receipt.hcsSeq);
+    if (message === undefined) result.missing.push(receipt);
+    else if (sha256Hex(message.bytes) !== receipt.lineHash) result.differ.push(receipt);
+    else { result.matched += 1; result.matches.push({ receipt, message }); }
+  }
+  return result;
+}
+
+/** Consensus time and running hash per topic sequence number. */
+export type AnchorTimes = Record<string, { timestamp: string; runningHash: string }>;
+
+export function loadAnchorTimes(root: string): AnchorTimes {
+  try {
+    return JSON.parse(readFileSync(anchorTimesPath(root), 'utf8')) as AnchorTimes;
+  } catch {
+    return {};
+  }
+}
+
+export function saveAnchorTimes(root: string, messages: readonly TopicMessage[]): void {
+  const times = loadAnchorTimes(root);
+  for (const m of messages) times[String(m.seq)] = { timestamp: m.consensusTimestamp, runningHash: m.runningHash };
+  const ordered: AnchorTimes = {};
+  for (const k of Object.keys(times).sort((a, b) => Number(a) - Number(b))) ordered[k] = times[k]!;
+  writeFileSync(anchorTimesPath(root), `${JSON.stringify(ordered, null, 2)}\n`, 'utf8');
+}
+
+/**
+ * Read the topic back until the mirror node shows `wantSeq`, then save the
+ * consensus times. The mirror node lags consensus by a few seconds. It gives up
+ * after `waitMs`; the next `petri hedera check` fills in anything missing.
+ */
+export async function syncAnchorTimes(root: string, cfg: AnchorConfig, wantSeq: number, waitMs = 20_000): Promise<boolean> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const messages = await fetchTopicMessages(cfg);
+    saveAnchorTimes(root, messages);
+    if (messages.some((m) => m.seq >= wantSeq)) return true;
+    if (Date.now() > deadline) return false;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
 }

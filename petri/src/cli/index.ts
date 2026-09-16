@@ -15,6 +15,7 @@ import { registerIdentity } from './identity.js';
 import { registerTopic } from './topic.js';
 import { registerNode } from './node.js';
 import { registerEvolve } from './evolve.js';
+import { registerRun } from './run.js';
 import { registerVerify, registerStatus, registerPublish } from './verify.js';
 import { registerDigest, registerAreas } from './digest.js';
 import { registerExport } from './log.js';
@@ -46,6 +47,7 @@ export function buildProgram(): Command {
   registerTopic(program);
   registerNode(program);
   registerEvolve(program);
+  registerRun(program);
   registerVerify(program);
   registerStatus(program);
   registerPublish(program);
@@ -70,6 +72,12 @@ function installSignalHandlers(): void {
 
 export async function main(argv: readonly string[]): Promise<void> {
   installSignalHandlers();
+  // petri/.env holds the Hedera account. A variable already set in the shell wins.
+  try {
+    process.loadEnvFile(resolve(DEFAULT_ROOT, '.env'));
+  } catch {
+    // No .env file. Every variable is optional.
+  }
   const program = buildProgram();
   try {
     await program.parseAsync(argv as string[]);

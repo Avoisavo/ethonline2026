@@ -39,6 +39,7 @@ import {
 } from './context.js';
 import { fmtBp, ignoredPhrase, shortId, statusLine } from './banner.js';
 import { loadBench, measure, seedsFor } from './measure.js';
+import { printVerifyTrace } from './trace.js';
 import { deltasOf, loadTree, verifierTally, type TreeView } from './tree.js';
 
 function harnessFor(ctx: Ctx, node: PetriNode): HarnessSnapshot {
@@ -61,11 +62,12 @@ export function registerVerify(program: Command): void {
     .option('--runs <odd>', 'runs per side')
     .option('--mode <mode>', 'live or replay')
     .option('--allow-graded', 'let a fixture miss fall back to the graded answers', false)
+    .option('--show', 'print the model input, its output and every task result', false)
     .description('independently re-run the parent and the candidate, sign, publish')
     .action(
       async (
         nodeId: string,
-        opts: { runs?: string; mode?: string; allowGraded?: boolean },
+        opts: { runs?: string; mode?: string; allowGraded?: boolean; show?: boolean },
         cmd: Command,
       ) => {
         const g = globalOptions(cmd);
@@ -191,6 +193,20 @@ export function registerVerify(program: Command): void {
           );
         }
 
+        if (opts.show === true && !g.json) {
+          printVerifyTrace({
+            benchDir: ctx.benchDir,
+            mode,
+            parentId,
+            candidateId: id,
+            parentHarnessId,
+            candidateHarnessId: node.manifest.harness,
+            candidateHarness,
+            parent: parentSide.results,
+            candidate: candidateSide.results,
+          });
+        }
+
         const env = buildEnv(ctx, mode, allowGraded);
         const report = buildReport({
           tree: ctx.config.treeId,
@@ -285,6 +301,7 @@ export function registerVerify(program: Command): void {
         out(`clean      ${clean ? 'yes' : 'NO — a tampered or short batch cannot support a node'}`);
         out(`published  ${seq === null ? 'NO' : `seq ${seq}`}`);
         out(`world id   ${worldCheckLine(world)}`);
+        out(`selfie     http://localhost:3000/selfie?node=${shortId(id)}&report=${reportId}`);
         out('');
         if (!clean) {
           out('One or more runs were tampered with or discarded. This report publishes');

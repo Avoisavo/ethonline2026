@@ -1,6 +1,6 @@
 # Petri
 
-Petri is a version tree for AI agent harnesses. A harness is the code around a model:
+Petri is is a version tree for AI agent harnesses. A harness is the code around a model:
 the prompt, the retry loop, the context it reads. Petri records every change to it.
 
 Each version in the tree holds three things:
